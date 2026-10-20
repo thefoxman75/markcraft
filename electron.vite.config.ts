@@ -12,6 +12,8 @@ export default defineConfig({
         input: {
           overlay: page('overlay'),
           editor: page('editor'),
+          capture: page('capture'),
+          library: page('library'),
           recorder: page('recorder'),
           scroll: page('scroll'),
           picker: page('picker'),

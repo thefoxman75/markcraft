@@ -60,6 +60,14 @@ export interface SaveRequest {
   defaultName: string
 }
 
+export interface LibraryItem {
+  filePath: string
+  name: string
+  thumbnail: string
+  modified: number
+  kind: 'image' | 'document'
+}
+
 export type MenuCommand =
   | 'save'
   | 'saveAs'

@@ -1,6 +1,7 @@
-import { app, type NativeImage } from 'electron'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { app, nativeImage, type NativeImage } from 'electron'
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { LibraryItem, SnapDoc } from '../shared/types'
 import { getSettings } from './settings'
 
 export const capturesDir = () => join(app.getPath('pictures'), 'Markcraft')
@@ -20,4 +21,42 @@ export function autoSaveCapture(image: NativeImage, name: string): string | unde
   const file = join(dir, `${name}.png`)
   writeFileSync(file, image.toPNG())
   return file
+}
+
+const LIBRARY_FILE = /\.(markcraft|png|jpe?g|gif|webp|bmp)$/i
+
+/** Saved captures, newest first, with small thumbnails suitable for renderer IPC. */
+export function listCaptures(limit = 500): LibraryItem[] {
+  const dir = capturesDir()
+  mkdirSync(dir, { recursive: true })
+  return readdirSync(dir)
+    .filter((name) => LIBRARY_FILE.test(name))
+    .map((name) => {
+      const filePath = join(dir, name)
+      try {
+        const modified = statSync(filePath).mtimeMs
+        const document = name.toLowerCase().endsWith('.markcraft')
+        const image = document
+          ? nativeImage.createFromDataURL((JSON.parse(readFileSync(filePath, 'utf8')) as SnapDoc).background.dataUrl)
+          : nativeImage.createFromPath(filePath)
+        if (image.isEmpty()) return null
+        const size = image.getSize()
+        const scale = Math.min(1, 240 / size.width, 150 / size.height)
+        const thumb = scale < 1
+          ? image.resize({ width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)), quality: 'best' })
+          : image
+        return {
+          filePath,
+          name,
+          thumbnail: thumb.toDataURL(),
+          modified,
+          kind: document ? 'document' as const : 'image' as const
+        }
+      } catch {
+        return null
+      }
+    })
+    .filter((item): item is LibraryItem => item !== null)
+    .sort((a, b) => b.modified - a.modified)
+    .slice(0, Math.max(1, limit))
 }

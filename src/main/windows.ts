@@ -1,7 +1,7 @@
 import { BrowserWindow, type BrowserWindowConstructorOptions } from 'electron'
 import { join } from 'node:path'
 
-export type Page = 'overlay' | 'editor' | 'recorder' | 'scroll' | 'picker' | 'player' | 'frame'
+export type Page = 'overlay' | 'editor' | 'capture' | 'library' | 'recorder' | 'scroll' | 'picker' | 'player' | 'frame'
 
 export function createWindow(page: Page, options: BrowserWindowConstructorOptions): BrowserWindow {
   const win = new BrowserWindow({

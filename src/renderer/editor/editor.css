@@ -1,14 +1,56 @@
 body {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto auto;
   grid-template-columns: 1fr auto;
   grid-template-areas:
     'toolbar toolbar'
     'notice notice'
     'stage sidebar'
+    'recent recent'
     'status status';
   overflow: hidden;
 }
+
+#recent-panel {
+  grid-area: recent;
+  min-height: 0;
+  background: var(--panel);
+  border-top: 3px solid var(--accent);
+}
+
+.recent-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.recent-head strong { font-size: 12px; }
+.recent-head span { flex: 1; color: var(--muted); font-size: 11px; }
+.recent-head button { padding: 3px 8px; font-size: 11px; }
+
+#recent-list {
+  display: flex;
+  gap: 8px;
+  height: 104px;
+  padding: 7px 9px;
+  overflow-x: auto;
+}
+
+.recent-item {
+  flex: 0 0 142px;
+  min-width: 0;
+  height: 88px;
+  padding: 4px;
+  overflow: hidden;
+  background: repeating-conic-gradient(#fff 0 25%, #f0f1f2 0 50%) 0 0 / 12px 12px;
+}
+
+.recent-item img { width: 100%; height: 100%; object-fit: contain; }
+.recent-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+#recent-panel.collapsed #recent-list { display: none; }
 
 .toolbar {
   grid-area: toolbar;

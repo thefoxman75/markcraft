@@ -1,0 +1,16 @@
+body { display: grid; grid-template-rows: auto 1fr auto; background: #edf1f5; color: #263746; overflow: hidden; }
+header, footer { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border-bottom: 1px solid #ccd5dc; }
+header strong { font-size: 16px; }
+.header-actions { margin-left: auto; display: flex; gap: 7px; }
+main { display: grid; grid-template-columns: 220px 1fr 130px; gap: 18px; align-items: center; padding: 18px; }
+.mode-list { display: grid; gap: 6px; }
+.mode { display: grid; grid-template-columns: 30px 1fr; text-align: left; padding: 8px; border-color: transparent; background: transparent; }
+.mode span { grid-row: 1 / 3; align-self: center; color: #2786b8; font-size: 22px; }
+.mode small { color: #637482; }
+.mode.selected { background: #dcebf4; border-color: #9dc4da; }
+.options { display: grid; gap: 8px; }
+.options label { display: flex; align-items: center; justify-content: space-between; padding: 9px 11px; background: #fff; border: 1px solid #ccd5dc; border-radius: 5px; }
+.options label > span { color: #60717e; }
+.capture-button { width: 112px; height: 112px; border-radius: 50%; background: #e8590c; border: 3px solid #c94708; color: white; font-size: 17px; box-shadow: 0 3px 8px rgb(0 0 0 / .22); }
+.capture-button small { display: block; margin-top: 5px; font-size: 10px; opacity: .85; }
+footer { border-top: 1px solid #ccd5dc; border-bottom: 0; }

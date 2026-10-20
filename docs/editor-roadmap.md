@@ -26,6 +26,8 @@ Selection editing now uses high-contrast circular resize and rotation handles, r
 
 The Select tool also shows eight handles around the captured canvas. Dragging an edge or corner trims that side or adds transparent canvas space; resizing from the top or left keeps the capture and annotations aligned. Canvas resizing is undoable and is preserved in exported images and editable documents.
 
+Markcraft now opens with a dedicated capture window, and the tray icon restores it. Auto-saved captures in `Pictures/Markcraft` form a persistent Library with search, dates and thumbnails. Editors include a collapsible recent-captures strip with shortcuts back to Capture and Library; selecting a recent thumbnail reopens that saved capture.
+
 Validation for this milestone passed on October 19, 2026: TypeScript checking, all seven unit tests, the production build, the native Electron editor smoke test, and screenshot generation. The smoke test covered drawing, undo/redo, exact crop dimensions, editable document saving, and burned-in redactions. Updated editor, OCR and selection screenshots are stored in `docs/screenshots/`.
 
 Deliver one complete editing workflow: **open a screenshot, choose a tool, draw an annotation, adjust its appearance, undo a change, then copy or save the result**.

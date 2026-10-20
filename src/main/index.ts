@@ -2,6 +2,7 @@ import {
   app,
   BrowserWindow,
   globalShortcut,
+  ipcMain,
   Menu,
   screen,
   shell,
@@ -19,7 +20,7 @@ import {
   warmOverlays
 } from './capture'
 import { openCapture, openFileDialog, openPath } from './editor'
-import { capturesDir, recordingsDir } from './library'
+import { capturesDir, listCaptures, recordingsDir } from './library'
 import { shutdownOcr } from './ocr'
 import {
   handleMediaScheme,
@@ -31,6 +32,7 @@ import {
 import { getSettings, updateSettings, type Settings } from './settings'
 import { installDisplayMediaHandler } from './streaming'
 import { createTrayIcon } from './tray-icon'
+import { createWindow } from './windows'
 
 interface Action {
   label: string
@@ -55,6 +57,57 @@ async function captureScreen(): Promise<void> {
   const image = await captureFullScreen()
   if (image) openCapture(image, 'Screen Capture')
 }
+
+let captureWindow: BrowserWindow | null = null
+let libraryWindow: BrowserWindow | null = null
+
+function showCaptureWindow(): void {
+  if (captureWindow && !captureWindow.isDestroyed()) {
+    captureWindow.show()
+    captureWindow.focus()
+    return
+  }
+  captureWindow = createWindow('capture', {
+    width: 680,
+    height: 350,
+    minWidth: 620,
+    minHeight: 330,
+    title: 'Markcraft Capture',
+    backgroundColor: '#edf1f5'
+  })
+  captureWindow.once('ready-to-show', () => captureWindow?.show())
+  captureWindow.on('closed', () => (captureWindow = null))
+}
+
+function showLibrary(): void {
+  if (libraryWindow && !libraryWindow.isDestroyed()) {
+    libraryWindow.show()
+    libraryWindow.focus()
+    return
+  }
+  libraryWindow = createWindow('library', {
+    width: 1100,
+    height: 760,
+    minWidth: 720,
+    minHeight: 480,
+    title: 'Markcraft Library',
+    backgroundColor: '#edf1f5'
+  })
+  libraryWindow.once('ready-to-show', () => libraryWindow?.show())
+  libraryWindow.on('closed', () => (libraryWindow = null))
+}
+
+ipcMain.handle('capture:show', () => showCaptureWindow())
+ipcMain.handle('library:show', () => showLibrary())
+ipcMain.handle('library:list', (_e, limit?: number) => listCaptures(limit))
+ipcMain.handle('library:open', (_e, filePath: string) => openPath(filePath))
+ipcMain.handle('capture:run', async (_e, mode: string) => {
+  if (mode === 'region') await captureRegion()
+  else if (mode === 'window') await openWindowPicker()
+  else if (mode === 'screen') await captureScreen()
+  else if (mode === 'scroll') await startScrollingCapture()
+  else if (mode === 'record') await startRecording()
+})
 
 const registered = new Set<string>()
 
@@ -224,12 +277,15 @@ if (!app.requestSingleInstanceLock()) {
     registerShortcuts()
     tray = new Tray(createTrayIcon())
     tray.setToolTip('Markcraft')
+    tray.on('click', showCaptureWindow)
     refreshMenus()
     warmOverlays()
     screen.on('display-added', warmOverlays)
     screen.on('display-removed', warmOverlays)
     screen.on('display-metrics-changed', updateOverlayBounds)
-    for (const p of [...queued.splice(0), ...fileArgs(process.argv)]) openPath(p)
+    const startupFiles = [...queued.splice(0), ...fileArgs(process.argv)]
+    for (const p of startupFiles) openPath(p)
+    if (!startupFiles.length) showCaptureWindow()
   })
   app.on('second-instance', (_e, argv) => fileArgs(argv).forEach(openPath))
 
@@ -237,7 +293,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => undefined)
   app.on('activate', () => {
     // Hidden capture overlays always exist, so look for visible windows.
-    if (!BrowserWindow.getAllWindows().some((w) => w.isVisible())) void openFileDialog()
+    if (!BrowserWindow.getAllWindows().some((w) => w.isVisible())) showCaptureWindow()
   })
   app.on('will-quit', () => {
     globalShortcut.unregisterAll()

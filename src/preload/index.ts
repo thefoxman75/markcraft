@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   EditorInit,
+  LibraryItem,
   MenuCommand,
   OverlayInit,
   Rect,
@@ -33,6 +34,14 @@ const api = {
   onMenu: (cb: (cmd: MenuCommand) => void): void => {
     ipcRenderer.on('menu', (_e, cmd: MenuCommand) => cb(cmd))
   },
+
+  // Capture window and library
+  runCapture: (mode: 'region' | 'window' | 'screen' | 'scroll' | 'record'): Promise<void> =>
+    ipcRenderer.invoke('capture:run', mode),
+  openCaptureWindow: (): Promise<void> => ipcRenderer.invoke('capture:show'),
+  openLibrary: (): Promise<void> => ipcRenderer.invoke('library:show'),
+  libraryItems: (limit?: number): Promise<LibraryItem[]> => ipcRenderer.invoke('library:list', limit),
+  openLibraryItem: (filePath: string): Promise<void> => ipcRenderer.invoke('library:open', filePath),
 
   // Screen recording
   recorderInit: (): Promise<RecorderInit> => ipcRenderer.invoke('recorder:init'),

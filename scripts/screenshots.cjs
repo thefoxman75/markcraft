@@ -13,6 +13,8 @@ const SAMPLE = path.join(__dirname, 'screenshot-sample.html')
 const PRELOAD = path.join(__dirname, '../out/preload/index.js')
 const WINDOW = { width: 1440, height: 900 }
 const MAX_WIDTH = 1600
+const TEST_PICTURES = fs.mkdtempSync(path.join(os.tmpdir(), 'markcraft-pictures-'))
+app.setPath('pictures', TEST_PICTURES)
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -115,6 +117,11 @@ const annotate = (b, scale) => `(async () => {
 async function captureEditor(sample) {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'markcraft-shots-')), 'Acme Projects.png')
   fs.writeFileSync(file, sample.image.toPNG())
+  const library = path.join(TEST_PICTURES, 'Markcraft')
+  fs.mkdirSync(library, { recursive: true })
+  for (let i = 1; i <= 6; i++) {
+    fs.writeFileSync(path.join(library, `Sample Capture ${i}.png`), sample.image.resize({ width: 480 + i * 35, quality: 'best' }).toPNG())
+  }
 
   const editor = new Promise((resolve) =>
     app.on('browser-window-created', (_e, win) =>
@@ -164,6 +171,17 @@ async function captureEditor(sample) {
   }
   await wait(300)
   await save(win, 'ocr')
+
+  const capture = BrowserWindow.getAllWindows().find((candidate) => candidate.webContents.getURL().includes('capture.html'))
+  if (!capture) throw new Error('capture window was not created')
+  await save(capture, 'capture-window')
+  await win.webContents.executeJavaScript('window.markcraft.openLibrary()')
+  await wait(400)
+  const libraryWin = BrowserWindow.getAllWindows().find((candidate) => candidate.webContents.getURL().includes('library.html'))
+  if (!libraryWin) throw new Error('library window was not created')
+  await save(libraryWin, 'library')
+  libraryWin.destroy()
+  capture.destroy()
   win.destroy()
 }
 

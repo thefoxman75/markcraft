@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" />
+    <title>Markcraft Library</title>
+    <link rel="stylesheet" href="./common/base.css" />
+    <link rel="stylesheet" href="./library/library.css" />
+  </head>
+  <body>
+    <header><strong>Library</strong><button id="capture">Capture</button></header>
+    <aside>
+      <input id="search" type="search" placeholder="Search Library" />
+      <button id="filter-all" class="selected">All Captures <output id="count"></output></button>
+      <button id="filter-images">Images</button>
+      <h2>Years</h2>
+      <div id="years"></div>
+    </aside>
+    <main><div id="empty" hidden>No saved captures yet. Take a capture to start your library.</div><div id="grid"></div></main>
+    <script type="module" src="./library/main.ts"></script>
+  </body>
+</html>

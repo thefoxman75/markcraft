@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" />
+    <title>Markcraft Capture</title>
+    <link rel="stylesheet" href="./common/base.css" />
+    <link rel="stylesheet" href="./capture/capture.css" />
+  </head>
+  <body>
+    <header>
+      <strong>Markcraft Capture</strong>
+      <div class="header-actions">
+        <button id="library">Library</button>
+        <button id="open-editor">Open Editor</button>
+      </div>
+    </header>
+    <main>
+      <section class="mode-list" aria-label="Capture type">
+        <button class="mode selected" data-mode="region"><span>▣</span><strong>Region</strong><small>Choose part of the screen</small></button>
+        <button class="mode" data-mode="window"><span>▤</span><strong>Window</strong><small>Capture one window</small></button>
+        <button class="mode" data-mode="screen"><span>▥</span><strong>Screen</strong><small>Capture the full display</small></button>
+      </section>
+      <section class="options">
+        <label><span>Selection</span><strong id="selection-label">Region</strong></label>
+        <label><span>Preview in Editor</span><input type="checkbox" checked disabled /></label>
+        <label><span>Auto-save to Library</span><input type="checkbox" checked disabled /></label>
+      </section>
+      <button id="capture" class="capture-button">Capture<small>Ctrl+Shift+1</small></button>
+    </main>
+    <footer>
+      <button data-mode="scroll">Scrolling Capture</button>
+      <button data-mode="record">Record Screen</button>
+    </footer>
+    <script type="module" src="./capture/main.ts"></script>
+  </body>
+</html>

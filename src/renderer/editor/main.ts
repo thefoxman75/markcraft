@@ -343,6 +343,35 @@ function markSaved(path: string): void {
   document.title = title
 }
 
+async function loadRecent(): Promise<void> {
+  const items = await api.libraryItems(16)
+  const list = $('recent-list')
+  list.replaceChildren()
+  $('recent-empty').textContent = items.length ? '' : 'No saved captures yet'
+  for (const item of items) {
+    const button = document.createElement('button')
+    button.className = 'recent-item'
+    button.classList.toggle('active', item.filePath === filePath)
+    button.title = item.name
+    const image = document.createElement('img')
+    image.src = item.thumbnail
+    image.alt = item.name
+    button.append(image)
+    button.addEventListener('click', () => void api.openLibraryItem(item.filePath))
+    list.append(button)
+  }
+}
+
+$('recent-library').addEventListener('click', () => void api.openLibrary())
+$('recent-capture').addEventListener('click', () => void api.openCaptureWindow())
+$('recent-toggle').addEventListener('click', () => {
+  const panel = $('recent-panel')
+  const collapsed = panel.classList.toggle('collapsed')
+  $('recent-toggle').textContent = collapsed ? 'Show Recent' : 'Hide Recent'
+  $('recent-toggle').setAttribute('aria-expanded', String(!collapsed))
+  if (autoFit) fit()
+})
+
 async function copyImage(): Promise<void> {
   await api.copyImage(doc.flatten())
   flash('Image copied to clipboard')
@@ -534,6 +563,7 @@ async function start(): Promise<void> {
   history.commit()
   selectTool('arrow')
   setColor(style.color)
+  await loadRecent()
   new ResizeObserver(() => {
     // Refit on the next frame: resizing the canvas inside the callback would
     // trigger another observation in the same frame.

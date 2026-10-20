@@ -84,6 +84,14 @@ function verifySaved(file) {
   if (size.width !== CROP.width || size.height !== CROP.height || doc.width !== CROP.width || doc.height !== CROP.height) {
     throw new Error(`saved background is ${size.width}×${size.height}, expected the ${CROP.width}×${CROP.height} crop`)
   }
+  const preview = nativeImage.createFromDataURL(doc.thumbnail || '')
+  if (preview.isEmpty()) throw new Error('saved document has no thumbnail')
+  const previewSize = preview.getSize()
+  if (previewSize.width > 240 || previewSize.height > 150) {
+    throw new Error(`saved thumbnail is too large: ${previewSize.width}×${previewSize.height}`)
+  }
+  const plainBackground = bg.resize({ width: previewSize.width, height: previewSize.height, quality: 'best' })
+  if (changedShare(preview, plainBackground) < 0.005) throw new Error('saved thumbnail does not show annotations')
   const px = bg.toBitmap()
   // Interior of a sample-space box (with a margin for rounding at the edges).
   const each = (x0, y0, x1, y1, fn) => {

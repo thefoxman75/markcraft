@@ -28,6 +28,8 @@ export interface SnapDoc {
   height: number
   background: { dataUrl: string; left: number; top: number }
   objects: unknown[]
+  /** Flattened, display-sized preview used by the Library and Recent strip. */
+  thumbnail?: string
 }
 
 export type EditorInit =

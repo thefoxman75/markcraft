@@ -37,7 +37,10 @@ export function listCaptures(limit = 500): LibraryItem[] {
         const modified = statSync(filePath).mtimeMs
         const document = name.toLowerCase().endsWith('.markcraft')
         const image = document
-          ? nativeImage.createFromDataURL((JSON.parse(readFileSync(filePath, 'utf8')) as SnapDoc).background.dataUrl)
+          ? (() => {
+              const doc = JSON.parse(readFileSync(filePath, 'utf8')) as SnapDoc
+              return nativeImage.createFromDataURL(doc.thumbnail ?? doc.background.dataUrl)
+            })()
           : nativeImage.createFromPath(filePath)
         if (image.isEmpty()) return null
         const size = image.getSize()

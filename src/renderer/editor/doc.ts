@@ -183,8 +183,25 @@ export class EditorDoc {
       width: s.width,
       height: s.height,
       background: { dataUrl: this.bakedBackground(redactions), left: 0, top: 0 },
-      objects: this.inlineAssets(s.objects.filter((o) => !isRedaction(o as SerializedObject)))
+      objects: this.inlineAssets(s.objects.filter((o) => !isRedaction(o as SerializedObject))),
+      thumbnail: this.thumbnail()
     }
+  }
+
+  /** A small flattened preview without selection handles for library surfaces. */
+  private thumbnail(): string {
+    const scale = Math.min(1, 240 / this.width, 150 / this.height)
+    const active = this.canvas.getActiveObject()
+    this.canvas.discardActiveObject()
+    this.canvas.renderAll()
+    const url = this.canvas.toDataURL({
+      format: 'png',
+      multiplier: scale / this.zoom,
+      enableRetinaScaling: false
+    })
+    if (active) this.canvas.setActiveObject(active)
+    this.canvas.requestRenderAll()
+    return url
   }
 
   /** The visible background with redactions painted on, as a PNG data URL. */

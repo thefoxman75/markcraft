@@ -105,6 +105,7 @@ export class Tools {
   private cropBox: Rect | null = null
   private pixelSelection: FabricImage | null = null
   selectionShape: 'rect' | 'ellipse' = 'rect'
+  selectionFill: 'transparent' | 'auto' = 'transparent'
   onCommit: () => void = () => undefined
   onCropChange: (active: boolean) => void = () => undefined
 
@@ -556,7 +557,7 @@ export class Tools {
       source.getContext('2d')!.clearRect(0, 0, source.width, source.height)
       source.getContext('2d')!.drawImage(clipped, 0, 0)
     }
-    await this.doc.eraseBackground(box, ellipse)
+    await this.doc.eraseBackground(box, ellipse, this.selectionFill)
     const image = await FabricImage.fromURL(source.toDataURL('image/png'))
     image.set({
       left: box.x,
@@ -570,6 +571,24 @@ export class Tools {
     image.setCoords()
     this.pixelSelection = image
     c.requestRenderAll()
+    this.onCommit()
+  }
+
+  async pasteImage(dataUrl: string): Promise<void> {
+    const image = await FabricImage.fromURL(dataUrl)
+    const scale = Math.min(1, this.doc.width * 0.65 / image.width, this.doc.height * 0.65 / image.height)
+    image.set({
+      left: (this.doc.width - image.width * scale) / 2,
+      top: (this.doc.height - image.height * scale) / 2,
+      scaleX: scale,
+      scaleY: scale,
+      snapKind: 'pixel',
+      snapAsset: this.doc.addAsset(dataUrl)
+    } as Partial<FabricImage>)
+    this.doc.canvas.add(image)
+    this.doc.canvas.setActiveObject(image)
+    this.pixelSelection = image
+    this.doc.canvas.requestRenderAll()
     this.onCommit()
   }
 }

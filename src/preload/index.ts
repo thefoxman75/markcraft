@@ -29,6 +29,7 @@ const api = {
     ipcRenderer.on('editor:load', (_e, init: EditorInit) => cb(init))
   },
   copyImage: (dataUrl: string): Promise<void> => ipcRenderer.invoke('clipboard:image', dataUrl),
+  readImage: (): Promise<string | null> => ipcRenderer.invoke('clipboard:read-image'),
   copyText: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:text', text),
   saveAs: (req: SaveRequest): Promise<string | null> => ipcRenderer.invoke('file:save-as', req),
   saveDoc: (filePath: string, doc: SnapDoc): Promise<void> =>

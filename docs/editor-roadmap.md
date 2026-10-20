@@ -32,6 +32,8 @@ Markcraft keeps the Editor and Library mutually exclusive. Opening the Library c
 
 Selection work has begun by separating annotation **Move** from pixel **Selection**. Rectangle and ellipse pixel selections lift pixels into a movable, resizable layer with eight handles and support Copy, Cut, Delete-to-transparency and Crop. Background, movement and resizing edits are stored in undo/redo history. Polygon, freehand, multiple/inverted selections and content-aware Auto-Fill remain in the next selection milestones.
 
+Clipboard images can be pasted as centered movable pixel layers. Selection Background Fill can use transparency or an initial Auto-Fill approximation based on colors sampled around the selected area; a later milestone can replace this deterministic fill with content-aware synthesis for complex backgrounds.
+
 Validation for this milestone passed on October 19, 2026: TypeScript checking, all seven unit tests, the production build, the native Electron editor smoke test, and screenshot generation. The smoke test covered drawing, undo/redo, exact crop dimensions, editable document saving, and burned-in redactions. Updated editor, OCR and selection screenshots are stored in `docs/screenshots/`.
 
 Deliver one complete editing workflow: **open a screenshot, choose a tool, draw an annotation, adjust its appearance, undo a change, then copy or save the result**.

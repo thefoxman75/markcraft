@@ -115,6 +115,17 @@ ipcMain.handle('clipboard:image', async (_e, dataUrl: string) => {
 })
 
 ipcMain.handle('clipboard:text', (_e, text: string) => clipboard.writeText(text))
+ipcMain.handle('clipboard:read-image', async () => {
+  for (const item of await clipboard.read()) {
+    const type = item.types.find((candidate) => candidate.startsWith('image/'))
+    if (!type) continue
+    const blob = await item.getType(type)
+    if (!(blob instanceof Blob)) continue
+    const image = nativeImage.createFromBuffer(Buffer.from(await blob.arrayBuffer()))
+    if (!image.isEmpty()) return image.toDataURL()
+  }
+  return null
+})
 
 ipcMain.handle('file:save-as', async (e, req: SaveRequest) => {
   const win = BrowserWindow.fromWebContents(e.sender)

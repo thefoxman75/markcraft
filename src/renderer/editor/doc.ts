@@ -262,13 +262,23 @@ export class EditorDoc {
   }
 
   /** Remove pixels from the background while leaving annotations editable. */
-  async eraseBackground(r: Rect, ellipse = false): Promise<void> {
+  async eraseBackground(r: Rect, ellipse = false, fill: 'transparent' | 'auto' = 'transparent'): Promise<void> {
     const out = document.createElement('canvas')
     out.width = this.width
     out.height = this.height
     const ctx = out.getContext('2d')!
     ctx.drawImage(this.bg.getElement() as CanvasImageSource, this.bg.left, this.bg.top)
-    ctx.globalCompositeOperation = 'destination-out'
+    const sample = (x: number, y: number) => ctx.getImageData(
+      Math.max(0, Math.min(out.width - 1, Math.round(x))),
+      Math.max(0, Math.min(out.height - 1, Math.round(y))), 1, 1
+    ).data
+    const samples = [
+      sample(r.x - 1, r.y + r.height / 2), sample(r.x + r.width, r.y + r.height / 2),
+      sample(r.x + r.width / 2, r.y - 1), sample(r.x + r.width / 2, r.y + r.height)
+    ]
+    const average = samples.map((_, channel) => Math.round(samples.reduce((sum, pixel) => sum + pixel[channel], 0) / samples.length))
+    ctx.globalCompositeOperation = fill === 'auto' ? 'source-over' : 'destination-out'
+    if (fill === 'auto') ctx.fillStyle = `rgba(${average[0]},${average[1]},${average[2]},${average[3] / 255})`
     if (ellipse) {
       ctx.beginPath()
       ctx.ellipse(r.x + r.width / 2, r.y + r.height / 2, r.width / 2, r.height / 2, 0, 0, Math.PI * 2)

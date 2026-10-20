@@ -484,6 +484,13 @@ document.querySelectorAll<HTMLButtonElement>('[data-selection-shape]').forEach((
       item.setAttribute('aria-pressed', String(item === button)))
   })
 })
+document.querySelectorAll<HTMLButtonElement>('[data-selection-fill]').forEach((button) => {
+  button.addEventListener('click', () => {
+    tools.selectionFill = button.dataset.selectionFill as 'transparent' | 'auto'
+    document.querySelectorAll<HTMLButtonElement>('[data-selection-fill]').forEach((item) =>
+      item.setAttribute('aria-pressed', String(item === button)))
+  })
+})
 $('pixel-copy').addEventListener('click', () => {
   const data = tools.pixelSelectionData()
   if (data) void api.copyImage(data).then(() => flash('Selection copied'))
@@ -494,6 +501,11 @@ $('pixel-cut').addEventListener('click', () => {
 })
 $('pixel-delete').addEventListener('click', () => void tools.deletePixelSelection())
 $('pixel-crop').addEventListener('click', () => tools.cropPixelSelection())
+$('pixel-paste').addEventListener('click', async () => {
+  const data = await api.readImage()
+  if (data) await tools.pasteImage(data)
+  else flash('Clipboard does not contain an image')
+})
 
 // ---- keyboard & menu --------------------------------------------------------------
 
@@ -568,6 +580,13 @@ document.addEventListener('copy', (e) => {
   e.preventDefault()
   const selected = tools.pixelSelectionData()
   void (selected ? api.copyImage(selected).then(() => flash('Selection copied')) : copyImage())
+})
+document.addEventListener('paste', (e) => {
+  if (editingText()) return
+  e.preventDefault()
+  void api.readImage().then(async (data) => {
+    if (data) await tools.pasteImage(data)
+  })
 })
 
 const commands: Record<MenuCommand, () => unknown> = {

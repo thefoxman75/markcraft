@@ -243,6 +243,19 @@ export class EditorDoc {
     this.applyZoom(this.zoom)
   }
 
+  /** Resize the document bounds, shifting its contents when the top or left edge moves. */
+  resizeCanvas(width: number, height: number, shiftX: number, shiftY: number): void {
+    this.width = Math.max(32, Math.round(width))
+    this.height = Math.max(32, Math.round(height))
+    if (shiftX || shiftY) {
+      for (const o of this.canvas.getObjects()) {
+        o.set({ left: o.left + shiftX, top: o.top + shiftY })
+        o.setCoords()
+      }
+    }
+    this.applyZoom(this.zoom)
+  }
+
   applyZoom(zoom: number): void {
     this.zoom = Math.min(8, Math.max(0.05, zoom))
     this.canvas.setDimensions({

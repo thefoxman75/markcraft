@@ -24,7 +24,19 @@
     </div>
 
     <main id="stage">
-      <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
+      <div id="canvas-wrap">
+        <canvas id="canvas"></canvas>
+        <div id="canvas-bounds" aria-label="Canvas resize handles">
+          <button class="canvas-handle nw" data-handle="nw" aria-label="Resize canvas from top left"></button>
+          <button class="canvas-handle n" data-handle="n" aria-label="Resize canvas from top"></button>
+          <button class="canvas-handle ne" data-handle="ne" aria-label="Resize canvas from top right"></button>
+          <button class="canvas-handle e" data-handle="e" aria-label="Resize canvas from right"></button>
+          <button class="canvas-handle se" data-handle="se" aria-label="Resize canvas from bottom right"></button>
+          <button class="canvas-handle s" data-handle="s" aria-label="Resize canvas from bottom"></button>
+          <button class="canvas-handle sw" data-handle="sw" aria-label="Resize canvas from bottom left"></button>
+          <button class="canvas-handle w" data-handle="w" aria-label="Resize canvas from left"></button>
+        </div>
+      </div>
     </main>
 
     <aside id="side-panel" aria-label="Editor sidebar">

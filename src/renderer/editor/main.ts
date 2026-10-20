@@ -62,6 +62,7 @@ function selectTool(name: ToolName): void {
   activeTool = name
   tools.setTool(name)
   for (const [n, b] of toolButtons) b.setAttribute('aria-pressed', String(n === name))
+  $('canvas-bounds').hidden = name !== 'select'
   showProperties()
   updateProperties()
 }
@@ -244,6 +245,58 @@ function updateProperties(): void {
 
 /** True until the user picks a zoom level; then window resizes stop refitting. */
 let autoFit = true
+
+type CanvasHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
+
+for (const handle of document.querySelectorAll<HTMLButtonElement>('.canvas-handle')) {
+  handle.addEventListener('pointerdown', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    autoFit = false
+    doc.canvas.discardActiveObject()
+    doc.canvas.requestRenderAll()
+    updateProperties()
+
+    const direction = handle.dataset.handle as CanvasHandle
+    const startX = event.clientX
+    const startY = event.clientY
+    const startWidth = doc.width
+    const startHeight = doc.height
+    let appliedShiftX = 0
+    let appliedShiftY = 0
+    handle.setPointerCapture(event.pointerId)
+
+    const move = (moveEvent: PointerEvent) => {
+      let dx = Math.round((moveEvent.clientX - startX) / doc.zoom)
+      let dy = Math.round((moveEvent.clientY - startY) / doc.zoom)
+      if (direction.includes('w')) dx = Math.min(dx, startWidth - 32)
+      if (direction.includes('e')) dx = Math.max(dx, 32 - startWidth)
+      if (direction.includes('n')) dy = Math.min(dy, startHeight - 32)
+      if (direction.includes('s')) dy = Math.max(dy, 32 - startHeight)
+
+      const left = direction.includes('w') ? dx : 0
+      const top = direction.includes('n') ? dy : 0
+      const width = startWidth + (direction.includes('e') ? dx : 0) - left
+      const height = startHeight + (direction.includes('s') ? dy : 0) - top
+      const shiftX = -left
+      const shiftY = -top
+      doc.resizeCanvas(width, height, shiftX - appliedShiftX, shiftY - appliedShiftY)
+      appliedShiftX = shiftX
+      appliedShiftY = shiftY
+    }
+
+    const finish = () => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', finish)
+      handle.removeEventListener('pointercancel', finish)
+      tools.onCommit()
+      updateProperties()
+    }
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', finish)
+    handle.addEventListener('pointercancel', finish)
+  })
+}
 
 function fit(): void {
   autoFit = true

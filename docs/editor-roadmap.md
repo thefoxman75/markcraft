@@ -24,6 +24,8 @@ Implemented on the `enhancements` branch: labeled tools at comfortable window wi
 
 Selection editing now uses high-contrast circular resize and rotation handles, reports the selected bounds, and provides Duplicate, Delete, To Front and To Back actions. Ctrl+A selects every annotation, Ctrl+D duplicates the selection, arrow keys move it by one pixel, and Shift+arrow moves it by ten pixels. These operations participate in undo/redo.
 
+The Select tool also shows eight handles around the captured canvas. Dragging an edge or corner trims that side or adds transparent canvas space; resizing from the top or left keeps the capture and annotations aligned. Canvas resizing is undoable and is preserved in exported images and editable documents.
+
 Validation for this milestone passed on October 19, 2026: TypeScript checking, all seven unit tests, the production build, the native Electron editor smoke test, and screenshot generation. The smoke test covered drawing, undo/redo, exact crop dimensions, editable document saving, and burned-in redactions. Updated editor, OCR and selection screenshots are stored in `docs/screenshots/`.
 
 Deliver one complete editing workflow: **open a screenshot, choose a tool, draw an annotation, adjust its appearance, undo a change, then copy or save the result**.

@@ -138,6 +138,24 @@ async function captureEditor(sample) {
   console.log('annotated', dims)
   await save(win, 'editor')
 
+  // Exercise a real canvas handle, then undo so the OCR screenshot retains
+  // the same dimensions as the editor screenshot.
+  const east = await win.webContents.executeJavaScript(`(() => {
+    const r = document.querySelector('.canvas-handle.e').getBoundingClientRect()
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
+  })()`)
+  win.webContents.sendInputEvent({ type: 'mouseDown', ...east, button: 'left', clickCount: 1 })
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: east.x + 48, y: east.y, button: 'left' })
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: east.x + 48, y: east.y, button: 'left', clickCount: 1 })
+  await wait(150)
+  const resized = await win.webContents.executeJavaScript("document.getElementById('dims').textContent")
+  if (resized === dims) throw new Error('canvas resize handle did not change the document dimensions')
+  win.webContents.send('menu', 'undo')
+  await wait(200)
+  const restored = await win.webContents.executeJavaScript("document.getElementById('dims').textContent")
+  if (restored !== dims) throw new Error(`undo restored ${restored}, expected ${dims}`)
+  console.log('canvas resize:', dims, '→', resized, '→ undo', restored)
+
   win.webContents.send('menu', 'ocr')
   for (let i = 0; i < 60; i++) {
     await wait(250)

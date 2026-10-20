@@ -552,18 +552,24 @@ api.onMenu((cmd) => void commands[cmd]?.())
 
 // ---- startup ------------------------------------------------------------------------
 
-async function start(): Promise<void> {
-  const init = await api.editorInit()
+async function loadEditor(init: Awaited<ReturnType<typeof api.editorInit>>): Promise<void> {
   title = init.title
   document.title = title
   filePath = init.filePath ?? null
   if (init.kind === 'doc') await doc.loadDoc(init.doc)
   else await doc.loadImage(init.dataUrl)
+  history.reset()
   fit()
   history.commit()
-  selectTool('arrow')
-  setColor(style.color)
+  selectTool('select')
   await loadRecent()
+}
+
+api.onEditorLoad((init) => void loadEditor(init))
+
+async function start(): Promise<void> {
+  await loadEditor(await api.editorInit())
+  setColor(style.color)
   new ResizeObserver(() => {
     // Refit on the next frame: resizing the canvas inside the callback would
     // trigger another observation in the same frame.

@@ -25,6 +25,9 @@ const api = {
 
   // Editor
   editorInit: (): Promise<EditorInit> => ipcRenderer.invoke('editor:init'),
+  onEditorLoad: (cb: (init: EditorInit) => void): void => {
+    ipcRenderer.on('editor:load', (_e, init: EditorInit) => cb(init))
+  },
   copyImage: (dataUrl: string): Promise<void> => ipcRenderer.invoke('clipboard:image', dataUrl),
   copyText: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:text', text),
   saveAs: (req: SaveRequest): Promise<string | null> => ipcRenderer.invoke('file:save-as', req),
@@ -40,6 +43,7 @@ const api = {
     ipcRenderer.invoke('capture:run', mode),
   openCaptureWindow: (): Promise<void> => ipcRenderer.invoke('capture:show'),
   openLibrary: (): Promise<void> => ipcRenderer.invoke('library:show'),
+  showEditor: (): Promise<boolean> => ipcRenderer.invoke('editor:show'),
   libraryItems: (limit?: number): Promise<LibraryItem[]> => ipcRenderer.invoke('library:list', limit),
   openLibraryItem: (filePath: string): Promise<void> => ipcRenderer.invoke('library:open', filePath),
 

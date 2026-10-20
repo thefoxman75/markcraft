@@ -78,6 +78,7 @@ export class EditorDoc {
   }
 
   async loadImage(dataUrl: string): Promise<void> {
+    this.clear()
     const bg = await FabricImage.fromURL(dataUrl)
     this.setBackground(bg, 0, 0)
     this.width = bg.width
@@ -85,11 +86,18 @@ export class EditorDoc {
   }
 
   async loadDoc(doc: SnapDoc): Promise<void> {
+    this.clear()
     const bg = await FabricImage.fromURL(doc.background.dataUrl)
     this.setBackground(bg, doc.background.left, doc.background.top)
     this.width = doc.width
     this.height = doc.height
     await this.setAnnotations(doc.objects)
+  }
+
+  private clear(): void {
+    this.canvas.discardActiveObject()
+    for (const object of this.canvas.getObjects()) this.canvas.remove(object)
+    this.assets.clear()
   }
 
   private setBackground(bg: FabricImage, left: number, top: number): void {

@@ -16,8 +16,17 @@ import { warmOcr } from './ocr'
 import { createWindow } from './windows'
 
 const pending = new Map<number, EditorInit>()
+let editorWindow: BrowserWindow | null = null
 
 export function openEditor(init: EditorInit, imageSize?: { width: number; height: number }): BrowserWindow {
+  if (editorWindow && !editorWindow.isDestroyed()) {
+    pending.set(editorWindow.webContents.id, init)
+    editorWindow.setTitle(init.title)
+    editorWindow.webContents.send('editor:load', init)
+    editorWindow.show()
+    editorWindow.focus()
+    return editorWindow
+  }
   const work = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
   // Size the window to the capture (in points), within 85% of the screen.
   const sf = screen.getPrimaryDisplay().scaleFactor
@@ -36,6 +45,7 @@ export function openEditor(init: EditorInit, imageSize?: { width: number; height
     title: init.title,
     backgroundColor: '#1e1f22'
   })
+  editorWindow = win
   pending.set(win.webContents.id, init)
   win.once('ready-to-show', () => {
     win.show()
@@ -44,8 +54,18 @@ export function openEditor(init: EditorInit, imageSize?: { width: number; height
     warmOcr()
   })
   const id = win.webContents.id
-  win.on('closed', () => pending.delete(id))
+  win.on('closed', () => {
+    pending.delete(id)
+    if (editorWindow === win) editorWindow = null
+  })
   return win
+}
+
+export function showEditor(): boolean {
+  if (!editorWindow || editorWindow.isDestroyed()) return false
+  editorWindow.show()
+  editorWindow.focus()
+  return true
 }
 
 /** Open a fresh capture in the editor, keeping an auto-saved original. */

@@ -19,7 +19,7 @@ import {
   updateOverlayBounds,
   warmOverlays
 } from './capture'
-import { openCapture, openFileDialog, openPath } from './editor'
+import { openCapture, openFileDialog, openPath, showEditor } from './editor'
 import { capturesDir, listCaptures, recordingsDir } from './library'
 import { shutdownOcr } from './ocr'
 import {
@@ -99,6 +99,11 @@ function showLibrary(): void {
 
 ipcMain.handle('capture:show', () => showCaptureWindow())
 ipcMain.handle('library:show', () => showLibrary())
+ipcMain.handle('editor:show', () => {
+  const shown = showEditor()
+  if (shown) libraryWindow?.hide()
+  return shown
+})
 ipcMain.handle('library:list', (_e, limit?: number) => listCaptures(limit))
 ipcMain.handle('library:open', (_e, filePath: string) => openPath(filePath))
 ipcMain.handle('capture:run', async (_e, mode: string) => {

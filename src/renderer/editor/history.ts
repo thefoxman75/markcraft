@@ -11,6 +11,13 @@ export class History {
 
   constructor(private readonly doc: EditorDoc) {}
 
+  reset(): void {
+    this.stack = []
+    this.index = -1
+    this.restoring = false
+    this.onChange()
+  }
+
   commit(): void {
     if (this.restoring) return
     const snap = JSON.stringify(this.doc.state())

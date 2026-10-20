@@ -58,4 +58,7 @@ document.getElementById('search')!.addEventListener('input', (event) => {
 document.getElementById('filter-all')!.addEventListener('click', (event) => setFilter('all', event.currentTarget as HTMLButtonElement))
 document.getElementById('filter-images')!.addEventListener('click', (event) => setFilter('images', event.currentTarget as HTMLButtonElement))
 document.getElementById('capture')!.addEventListener('click', () => void api.openCaptureWindow())
+document.getElementById('back-editor')!.addEventListener('click', async () => {
+  if (!(await api.showEditor()) && items.length) await api.openLibraryItem(items[0].filePath)
+})
 void load()

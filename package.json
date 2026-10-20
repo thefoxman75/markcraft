@@ -134,6 +134,14 @@
     ],
     "extraResources": [
       {
+        "from": "build/icon-editor.png",
+        "to": "icon-editor.png"
+      },
+      {
+        "from": "build/icon-capture.png",
+        "to": "icon-capture.png"
+      },
+      {
         "from": "node_modules/@tesseract.js-data/eng/4.0.0_best_int",
         "to": "tessdata",
         "filter": [

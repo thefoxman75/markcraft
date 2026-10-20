@@ -1,11 +1,16 @@
-import { BrowserWindow, type BrowserWindowConstructorOptions } from 'electron'
+import { app, BrowserWindow, type BrowserWindowConstructorOptions } from 'electron'
 import { join } from 'node:path'
 
 export type Page = 'overlay' | 'editor' | 'capture' | 'library' | 'recorder' | 'scroll' | 'picker' | 'player' | 'frame'
 
 export function createWindow(page: Page, options: BrowserWindowConstructorOptions): BrowserWindow {
+  const roleIcon = page === 'editor' ? 'icon-editor.png' : page === 'capture' ? 'icon-capture.png' : 'icon.png'
+  const icon = app.isPackaged
+    ? join(process.resourcesPath, roleIcon)
+    : join(app.getAppPath(), 'build', roleIcon)
   const win = new BrowserWindow({
     show: false,
+    icon,
     ...options,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

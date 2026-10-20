@@ -6,12 +6,12 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const SIZE = 1024
-const svg = fs.readFileSync(path.join(__dirname, '../build/icon.svg'), 'utf8')
-
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false, width: 200, height: 200 })
   await win.loadURL('about:blank')
-  const dataUrl = await win.webContents.executeJavaScript(`(async () => {
+  for (const name of ['icon', 'icon-editor', 'icon-capture']) {
+    const svg = fs.readFileSync(path.join(__dirname, `../build/${name}.svg`), 'utf8')
+    const dataUrl = await win.webContents.executeJavaScript(`(async () => {
     const img = new Image()
     img.src = ${JSON.stringify('data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64'))}
     await img.decode()
@@ -19,9 +19,10 @@ app.whenReady().then(async () => {
     c.width = c.height = ${SIZE}
     c.getContext('2d').drawImage(img, 0, 0, ${SIZE}, ${SIZE})
     return c.toDataURL('image/png')
-  })()`)
-  const out = path.join(__dirname, '../build/icon.png')
-  fs.writeFileSync(out, Buffer.from(dataUrl.split(',')[1], 'base64'))
-  console.log('wrote', out)
+    })()`)
+    const out = path.join(__dirname, `../build/${name}.png`)
+    fs.writeFileSync(out, Buffer.from(dataUrl.split(',')[1], 'base64'))
+    console.log('wrote', out)
+  }
   app.exit()
 })

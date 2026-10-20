@@ -66,7 +66,7 @@ const canvasPixels = async (win) =>
 /**
  * Share of pixels that differ clearly between two renders. Restored shapes are
  * re-rasterised, so faint anti-aliasing and shadow edges differ by design
- * (~0.01%); one missing step badge alone changes ~0.1%.
+ * (up to ~0.06% on Windows); one missing step badge alone changes ~0.1%.
  */
 // Crop applied before saving, in sample-image pixels.
 const CROP = { x: 100, y: 50, width: 1050, height: 600 }
@@ -81,7 +81,7 @@ function verifySaved(file) {
   }
   const bg = nativeImage.createFromDataURL(doc.background.dataUrl)
   const size = bg.getSize()
-  if (size.width !== CROP.width || size.height !== CROP.height || doc.width !== CROP.width) {
+  if (size.width !== CROP.width || size.height !== CROP.height || doc.width !== CROP.width || doc.height !== CROP.height) {
     throw new Error(`saved background is ${size.width}×${size.height}, expected the ${CROP.width}×${CROP.height} crop`)
   }
   const px = bg.toBitmap()
@@ -123,9 +123,26 @@ app.on('browser-window-created', (_e, win) => {
     // Capture overlays are created hidden at startup; only drive the editor.
     if (!win.webContents.getURL().includes('editor.html')) return
     try {
-      console.log('editor:', await win.webContents.executeJavaScript(drawScript))
-      // Undo the last three actions (two steps and the pixelation), then redo them.
       const pause = () => new Promise((r) => setTimeout(r, 250))
+      let ready = false
+      for (let i = 0; i < 40; i++) {
+        ready = await win.webContents.executeJavaScript("Boolean(document.getElementById('dims').textContent)")
+        if (ready) break
+        await pause()
+      }
+      if (!ready) throw new Error('editor did not finish loading the sample image')
+      // MouseEvent coordinates are whole CSS pixels. At fractional zoom, their
+      // rounding can move the exact crop edge by a document pixel. Draw at 1:1.
+      win.webContents.send('menu', 'zoomActual')
+      let actualSize = false
+      for (let i = 0; i < 20; i++) {
+        actualSize = await win.webContents.executeJavaScript("document.getElementById('zoom-label').textContent === '100%'")
+        if (actualSize) break
+        await pause()
+      }
+      if (!actualSize) throw new Error('editor did not switch to actual-size zoom')
+      console.log('editor:', await win.webContents.executeJavaScript(drawScript))
+      // Undo the last three actions (two steps and the solid redaction), then redo them.
       await pause()
       const drawn = await canvasPixels(win)
       for (let i = 0; i < 3; i++) {
@@ -142,7 +159,7 @@ app.on('browser-window-created', (_e, win) => {
       const afterRedo = changedShare(drawn, redone)
       console.log(`undo/redo: undo changed ${(afterUndo * 100).toFixed(2)}% of pixels, redo left ${(afterRedo * 100).toFixed(3)}% different`)
       if (afterUndo < 0.001) throw new Error('undo did not remove the last actions')
-      if (afterRedo > 0.0005) throw new Error('redo did not restore the drawing')
+      if (afterRedo > 0.0008) throw new Error('redo did not restore the drawing')
 
       // Crop, then Save As .markcraft through the real menu path (dialog stubbed).
       const saved = path.join(path.dirname(sample), 'saved.markcraft')
@@ -156,13 +173,15 @@ app.on('browser-window-created', (_e, win) => {
       win.webContents.send('menu', 'saveAs')
       for (let i = 0; i < 40 && !fs.existsSync(saved); i++) await pause()
       verifySaved(saved)
+      await win.webContents.executeJavaScript("__tool('a')")
+      await pause()
       fs.writeFileSync(out, (await win.webContents.capturePage()).toPNG())
       console.log('screenshot:', out)
     } catch (err) {
       console.error('smoke failed:', err)
       process.exitCode = 1
     }
-    app.exit()
+    app.exit(process.exitCode ?? 0)
   })
 })
 

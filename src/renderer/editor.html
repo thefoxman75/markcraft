@@ -13,18 +13,8 @@
   <body>
     <header class="toolbar">
       <div class="group" id="tools" role="toolbar" aria-label="Tools"></div>
-      <div class="divider"></div>
-      <div class="group" id="swatches" aria-label="Colour"></div>
-      <label class="field" title="Stroke width">
-        <span>Width</span>
-        <input id="width" type="range" min="1" max="24" value="5" />
-      </label>
-      <label class="field" title="Text size">
-        <span>Text</span>
-        <input id="font-size" type="range" min="12" max="120" value="36" />
-      </label>
       <div class="spacer"></div>
-      <div class="group" id="actions"></div>
+      <div class="group actions" id="actions" role="toolbar" aria-label="Document actions"></div>
     </header>
 
     <div id="crop-bar" class="notice" hidden>
@@ -37,15 +27,48 @@
       <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
     </main>
 
-    <aside id="ocr-panel" hidden>
-      <div class="panel-head">
-        <strong>Grabbed text</strong>
-        <button id="ocr-close" title="Close">✕</button>
+    <aside id="side-panel" aria-label="Editor sidebar">
+      <div id="properties-panel">
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">Tool properties</span>
+            <strong id="properties-title">Arrow</strong>
+          </div>
+        </div>
+        <div class="panel-body">
+          <section id="quick-styles-section" class="property-section">
+            <h2>Quick Styles</h2>
+            <div id="quick-styles" class="quick-styles" aria-label="Quick styles"></div>
+          </section>
+          <section id="color-section" class="property-section">
+            <h2>Color</h2>
+            <div class="group swatches" id="swatches" aria-label="Color"></div>
+          </section>
+          <section id="width-section" class="property-section">
+            <label class="property-label" for="width"><span>Width</span><output id="width-value">5 px</output></label>
+            <input id="width" type="range" min="1" max="24" value="5" />
+          </section>
+          <section id="font-size-section" class="property-section">
+            <label class="property-label" for="font-size"><span>Text size</span><output id="font-size-value">36 px</output></label>
+            <input id="font-size" type="range" min="12" max="120" value="36" />
+          </section>
+          <p id="property-help" class="property-help"></p>
+        </div>
       </div>
-      <textarea id="ocr-text" spellcheck="false"></textarea>
-      <div class="panel-foot">
-        <span id="ocr-status"></span>
-        <button id="ocr-copy" class="primary">Copy Text</button>
+
+      <div id="ocr-panel" hidden>
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">Grab Text</span>
+            <strong>Recognized text</strong>
+          </div>
+          <button id="ocr-close" class="icon-button" title="Back to tool properties" aria-label="Back to tool properties">✕</button>
+        </div>
+        <textarea id="ocr-text" spellcheck="false"></textarea>
+        <div class="panel-foot">
+          <span id="ocr-status"></span>
+          <button id="ocr-copy" class="primary">Copy Text</button>
+        </div>
       </div>
     </aside>
 

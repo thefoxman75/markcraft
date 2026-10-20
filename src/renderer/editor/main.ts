@@ -3,7 +3,7 @@ import { api } from '../common/api'
 import { EditorDoc } from './doc'
 import { History } from './history'
 import { icons } from './icons'
-import { Tools, type Style, type ToolName } from './tools'
+import { Tools, type SelectionStyle, type Style, type ToolName } from './tools'
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
 
@@ -22,11 +22,22 @@ const TOOLS: { name: ToolName; label: string; key: string }[] = [
   { name: 'crop', label: 'Crop', key: 'c' }
 ]
 
+const TOOL_LABELS = new Map(TOOLS.map((tool) => [tool.name, tool.label]))
+
 const COLORS = ['#e8590c', '#e03131', '#f2c94c', '#2f9e44', '#1c7ed6', '#7048e8', '#111111', '#ffffff']
 
 const style: Style = { color: COLORS[0], width: 5, fontSize: 36 }
+const QUICK_STYLES: { label: string; color: string; width: number; fontSize: number }[] = [
+  { label: 'Orange', color: '#e8590c', width: 5, fontSize: 36 },
+  { label: 'Red bold', color: '#e03131', width: 8, fontSize: 44 },
+  { label: 'Blue fine', color: '#1c7ed6', width: 3, fontSize: 30 },
+  { label: 'Green', color: '#2f9e44', width: 5, fontSize: 36 },
+  { label: 'Black', color: '#111111', width: 5, fontSize: 36 },
+  { label: 'Yellow', color: '#f2c94c', width: 10, fontSize: 44 }
+]
 let filePath: string | null = null
 let title = 'Markcraft'
+let activeTool: ToolName = 'arrow'
 
 const doc = new EditorDoc($<HTMLCanvasElement>('canvas'))
 const history = new History(doc)
@@ -38,7 +49,7 @@ const toolButtons = new Map<ToolName, HTMLButtonElement>()
 for (const t of TOOLS) {
   const b = document.createElement('button')
   b.className = 'tool'
-  b.innerHTML = icons[t.name]
+  b.innerHTML = `${icons[t.name]}<span class="tool-label">${t.label}</span>`
   b.title = `${t.label} (${t.key.toUpperCase()})`
   b.setAttribute('aria-label', t.label)
   b.addEventListener('click', () => selectTool(t.name))
@@ -47,8 +58,11 @@ for (const t of TOOLS) {
 }
 
 function selectTool(name: ToolName): void {
+  activeTool = name
   tools.setTool(name)
   for (const [n, b] of toolButtons) b.setAttribute('aria-pressed', String(n === name))
+  showProperties()
+  updateProperties()
 }
 
 const swatches: HTMLButtonElement[] = []
@@ -73,28 +87,55 @@ function setColor(c: string): void {
   custom.value = c
   swatches.forEach((b, i) => b.setAttribute('aria-pressed', String(COLORS[i] === c)))
   tools.applyStyle()
+  updatePropertyValues()
 }
 
 $<HTMLInputElement>('width').addEventListener('input', (e) => {
   style.width = Number((e.target as HTMLInputElement).value)
   tools.applyStyle()
+  updatePropertyValues()
 })
 $<HTMLInputElement>('font-size').addEventListener('input', (e) => {
   style.fontSize = Number((e.target as HTMLInputElement).value)
   tools.applyStyle()
+  updatePropertyValues()
 })
 
+const quickStyleButtons: HTMLButtonElement[] = []
+for (const preset of QUICK_STYLES) {
+  const button = document.createElement('button')
+  button.className = 'quick-style'
+  button.title = preset.label
+  button.setAttribute('aria-label', preset.label)
+  button.style.setProperty('--style-color', preset.color)
+  button.style.setProperty('--style-width', `${Math.max(3, Math.min(12, preset.width))}px`)
+  button.innerHTML = '<span aria-hidden="true"></span>'
+  button.addEventListener('click', () => {
+    style.color = preset.color
+    style.width = preset.width
+    style.fontSize = preset.fontSize
+    syncInputs()
+    tools.applyStyle()
+    updatePropertyValues()
+  })
+  $('quick-styles').append(button)
+  quickStyleButtons.push(button)
+}
+
 const actionButtons: Record<string, HTMLButtonElement> = {}
+const primaryKey = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+'
+const shiftKey = /Mac|iPhone|iPad/.test(navigator.platform) ? '⇧' : 'Shift+'
 for (const [id, label, icon, run] of [
-  ['undo', 'Undo (⌘Z)', icons.undo, () => history.undo()],
-  ['redo', 'Redo (⇧⌘Z)', icons.redo, () => history.redo()],
-  ['ocr', 'Grab text (⇧⌘T)', icons.ocr, grabText],
-  ['copy', 'Copy image (⇧⌘C)', icons.copy, copyImage],
-  ['save', 'Save As… (⇧⌘S)', icons.save, saveAs]
+  ['undo', `Undo (${primaryKey}Z)`, icons.undo, () => history.undo()],
+  ['redo', `Redo (${primaryKey}${shiftKey}Z)`, icons.redo, () => history.redo()],
+  ['ocr', `Grab text (${primaryKey}${shiftKey}T)`, icons.ocr, grabText],
+  ['copy', `Copy image (${primaryKey}C)`, icons.copy, copyImage],
+  ['save', `Save As… (${primaryKey}${shiftKey}S)`, icons.save, saveAs]
 ] as const) {
   const b = document.createElement('button')
   b.className = 'tool'
-  b.innerHTML = icon
+  b.dataset.action = id
+  b.innerHTML = `${icon}<span class="tool-label">${label.split(' (')[0]}</span>`
   b.title = label
   b.setAttribute('aria-label', label)
   b.addEventListener('click', () => void run())
@@ -105,6 +146,7 @@ for (const [id, label, icon, run] of [
 history.onChange = () => {
   actionButtons.undo.disabled = !history.canUndo
   actionButtons.redo.disabled = !history.canRedo
+  updateProperties()
 }
 
 tools.onCommit = () => {
@@ -112,6 +154,9 @@ tools.onCommit = () => {
   markDirty()
 }
 doc.canvas.on('object:modified', tools.onCommit)
+doc.canvas.on('selection:created', updateProperties)
+doc.canvas.on('selection:updated', updateProperties)
+doc.canvas.on('selection:cleared', updateProperties)
 
 tools.onCropChange = (active) => {
   $('crop-bar').hidden = !active
@@ -122,6 +167,72 @@ $('crop-cancel').addEventListener('click', () => tools.cancelCrop())
 // ---- zoom & layout --------------------------------------------------------------
 
 const stage = $('stage')
+
+// ---- properties sidebar -------------------------------------------------------
+
+const COLOR_TOOLS = new Set<ToolName>(['arrow', 'line', 'rect', 'ellipse', 'text', 'step', 'highlight', 'pen', 'block'])
+const WIDTH_TOOLS = new Set<ToolName>(['arrow', 'line', 'rect', 'ellipse', 'step', 'pen'])
+const FONT_TOOLS = new Set<ToolName>(['text'])
+
+function showProperties(): void {
+  $('properties-panel').hidden = false
+  $('ocr-panel').hidden = true
+}
+
+function selectionTool(selection: SelectionStyle | null): ToolName | null {
+  return selection?.kind && selection.kind !== 'mixed' ? (selection.kind as ToolName) : null
+}
+
+function syncInputs(): void {
+  $<HTMLInputElement>('width').value = String(style.width)
+  $<HTMLInputElement>('font-size').value = String(style.fontSize)
+  custom.value = style.color
+  swatches.forEach((button, i) => button.setAttribute('aria-pressed', String(COLORS[i] === style.color)))
+}
+
+function updatePropertyValues(): void {
+  $('width-value').textContent = `${style.width} px`
+  $('font-size-value').textContent = `${style.fontSize} px`
+  quickStyleButtons.forEach((button, i) => {
+    const preset = QUICK_STYLES[i]
+    button.setAttribute(
+      'aria-pressed',
+      String(preset.color === style.color && preset.width === style.width && preset.fontSize === style.fontSize)
+    )
+  })
+}
+
+function updateProperties(): void {
+  const selection = tools.selectionStyle()
+  const selectedTool = selectionTool(selection)
+  if (selection?.color) style.color = selection.color
+  if (selection?.width !== undefined) style.width = selection.width
+  if (selection?.fontSize !== undefined) style.fontSize = selection.fontSize
+  syncInputs()
+  updatePropertyValues()
+
+  const effective = selectedTool ?? activeTool
+  const mixed = selection?.kind === 'mixed'
+  const fixedWidthSelection = selectedTool === 'arrow' || selectedTool === 'step'
+  $('properties-title').textContent = selection
+    ? selection.count > 1
+      ? `${selection.count} annotations selected`
+      : TOOL_LABELS.get(effective) ?? 'Annotation'
+    : TOOL_LABELS.get(activeTool) ?? 'Tool'
+  $('color-section').hidden = mixed || !COLOR_TOOLS.has(effective)
+  $('width-section').hidden = mixed || !WIDTH_TOOLS.has(effective) || fixedWidthSelection
+  $('font-size-section').hidden = mixed || !FONT_TOOLS.has(effective)
+  $('quick-styles-section').hidden = mixed || !COLOR_TOOLS.has(effective)
+  $('property-help').textContent = mixed
+    ? 'Choose one kind of annotation at a time to edit its appearance.'
+    : fixedWidthSelection
+      ? 'Size is fixed after drawing. Color changes apply to the selected annotation.'
+      : selection
+        ? 'Changes apply to the selected annotation.'
+        : effective === 'select' || effective === 'crop' || effective === 'redact'
+          ? 'This tool has no appearance settings.'
+          : 'These settings will be used for the next annotation.'
+}
 
 /** True until the user picks a zoom level; then window resizes stop refitting. */
 let autoFit = true
@@ -199,6 +310,7 @@ function baseName(): string {
 }
 
 async function grabText(): Promise<void> {
+  $('properties-panel').hidden = true
   $('ocr-panel').hidden = false
   const status = $('ocr-status')
   const area = $<HTMLTextAreaElement>('ocr-text')
@@ -216,6 +328,7 @@ async function grabText(): Promise<void> {
 
 $('ocr-close').addEventListener('click', () => {
   $('ocr-panel').hidden = true
+  $('properties-panel').hidden = false
   fit()
 })
 $('ocr-copy').addEventListener('click', async () => {
@@ -298,7 +411,10 @@ async function start(): Promise<void> {
   new ResizeObserver(() => {
     // Refit on the next frame: resizing the canvas inside the callback would
     // trigger another observation in the same frame.
-    if (autoFit) requestAnimationFrame(fit)
+    requestAnimationFrame(() => {
+      // A user zoom may have happened since this resize was queued.
+      if (autoFit) fit()
+    })
   }).observe(stage)
 }
 

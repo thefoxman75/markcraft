@@ -37,6 +37,11 @@ export interface Style {
   fontSize: number
 }
 
+export interface SelectionStyle extends Partial<Style> {
+  kind: SnapKind | 'mixed'
+  count: number
+}
+
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif'
 const CROP_COLOR = '#e8590c'
 const SOLID_REDACT = '#111111'
@@ -68,6 +73,26 @@ export function arrowPathData(x1: number, y1: number, x2: number, y2: number, wi
 }
 
 const kind = (o: FabricObject) => (o as FabricObject & { snapKind?: SnapKind }).snapKind
+
+const objectColor = (o: FabricObject): string | undefined => {
+  const k = kind(o)
+  const value =
+    k === 'step'
+      ? (o as Group).getObjects()[0]?.fill
+      : k === 'text' || k === 'highlight' || k === 'block'
+        ? o.fill
+        : o.stroke
+  if (typeof value !== 'string') return undefined
+  if (value.startsWith('#')) return value.toLowerCase()
+  const match = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+  if (!match) return undefined
+  return `#${[match[1], match[2], match[3]].map((v) => Number(v).toString(16).padStart(2, '0')).join('')}`
+}
+
+const common = <T>(values: (T | undefined)[]): T | undefined => {
+  const first = values[0]
+  return first !== undefined && values.every((value) => value === first) ? first : undefined
+}
 
 export class Tools {
   tool: ToolName = 'arrow'
@@ -151,6 +176,26 @@ export class Tools {
     if (selected.length) {
       c.requestRenderAll()
       this.onCommit()
+    }
+  }
+
+  /** Properties shared by the current selection, for the properties sidebar. */
+  selectionStyle(): SelectionStyle | null {
+    const selected = this.doc.canvas.getActiveObjects()
+    if (!selected.length) return null
+    const kinds = selected.map(kind)
+    const selectedKind = common(kinds) ?? 'mixed'
+    return {
+      kind: selectedKind,
+      count: selected.length,
+      color: common(selected.map(objectColor)),
+      width: common(
+        selected.map((o) => {
+          const k = kind(o)
+          return k === 'line' || k === 'rect' || k === 'ellipse' || k === 'pen' ? Number(o.strokeWidth) : undefined
+        })
+      ),
+      fontSize: common(selected.map((o) => (kind(o) === 'text' ? Number((o as IText).fontSize) : undefined)))
     }
   }
 

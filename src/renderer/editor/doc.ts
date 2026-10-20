@@ -4,6 +4,15 @@ import type { Rect, SnapDoc } from '../../shared/types'
 // Fabric 7 defaults to centre origins; every position in this editor is top-left based.
 FabricObject.ownDefaults.originX = 'left'
 FabricObject.ownDefaults.originY = 'top'
+// Keep transform handles visible over both light and dark screenshots.
+FabricObject.ownDefaults.borderColor = '#e8590c'
+FabricObject.ownDefaults.borderScaleFactor = 2
+FabricObject.ownDefaults.cornerColor = '#ffffff'
+FabricObject.ownDefaults.cornerStrokeColor = '#e8590c'
+FabricObject.ownDefaults.cornerStyle = 'circle'
+FabricObject.ownDefaults.cornerSize = 12
+FabricObject.ownDefaults.transparentCorners = false
+FabricObject.ownDefaults.padding = 4
 
 /** Custom properties persisted with each annotation. */
 export const CUSTOM_PROPS = ['snapKind', 'snapAsset']

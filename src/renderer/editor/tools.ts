@@ -40,6 +40,10 @@ export interface Style {
 export interface SelectionStyle extends Partial<Style> {
   kind: SnapKind | 'mixed'
   count: number
+  x: number
+  y: number
+  boundsWidth: number
+  boundsHeight: number
 }
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif'
@@ -185,9 +189,14 @@ export class Tools {
     if (!selected.length) return null
     const kinds = selected.map(kind)
     const selectedKind = common(kinds) ?? 'mixed'
+    const bounds = this.doc.canvas.getActiveObject()!.getBoundingRect()
     return {
       kind: selectedKind,
       count: selected.length,
+      x: Math.round(bounds.left),
+      y: Math.round(bounds.top),
+      boundsWidth: Math.round(bounds.width),
+      boundsHeight: Math.round(bounds.height),
       color: common(selected.map(objectColor)),
       width: common(
         selected.map((o) => {

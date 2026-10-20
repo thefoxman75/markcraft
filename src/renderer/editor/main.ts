@@ -1,4 +1,5 @@
 import type { MenuCommand } from '../../shared/types'
+import { ActiveSelection, type FabricObject } from 'fabric'
 import { api } from '../common/api'
 import { EditorDoc } from './doc'
 import { History } from './history'
@@ -214,6 +215,13 @@ function updateProperties(): void {
   const effective = selectedTool ?? activeTool
   const mixed = selection?.kind === 'mixed'
   const fixedWidthSelection = selectedTool === 'arrow' || selectedTool === 'step'
+  $('selection-section').hidden = !selection
+  if (selection) {
+    $('selection-x').textContent = String(selection.x)
+    $('selection-y').textContent = String(selection.y)
+    $('selection-width').textContent = String(selection.boundsWidth)
+    $('selection-height').textContent = String(selection.boundsHeight)
+  }
   $('properties-title').textContent = selection
     ? selection.count > 1
       ? `${selection.count} annotations selected`
@@ -346,6 +354,38 @@ function deleteSelection(): void {
   tools.onCommit()
 }
 
+async function duplicateSelection(): Promise<void> {
+  const c = doc.canvas
+  const selected = c.getActiveObjects()
+  if (!selected.length) return
+  const copies = await Promise.all(selected.map((o) => o.clone(['snapKind', 'snapAsset']) as Promise<FabricObject>))
+  c.discardActiveObject()
+  for (const copy of copies) {
+    copy.set({ left: copy.left + 16, top: copy.top + 16 })
+    copy.setCoords()
+    c.add(copy)
+  }
+  c.setActiveObject(copies.length === 1 ? copies[0] : new ActiveSelection(copies, { canvas: c }))
+  c.requestRenderAll()
+  tools.onCommit()
+  updateProperties()
+}
+
+function reorderSelection(front: boolean): void {
+  const c = doc.canvas
+  const selected = c.getActiveObjects()
+  if (!selected.length) return
+  for (const o of selected) front ? c.bringObjectToFront(o) : c.sendObjectToBack(o)
+  c.sendObjectToBack(doc.bg)
+  c.requestRenderAll()
+  tools.onCommit()
+}
+
+$('selection-duplicate').addEventListener('click', () => void duplicateSelection())
+$('selection-delete').addEventListener('click', deleteSelection)
+$('selection-front').addEventListener('click', () => reorderSelection(true))
+$('selection-back').addEventListener('click', () => reorderSelection(false))
+
 // ---- keyboard & menu --------------------------------------------------------------
 
 const editingText = () => {
@@ -356,7 +396,22 @@ const editingText = () => {
 
 window.addEventListener('keydown', (e) => {
   if (editingText()) return
-  if (e.metaKey || e.ctrlKey || e.altKey) return
+  const primary = e.metaKey || e.ctrlKey
+  if (primary && !e.altKey && e.key.toLowerCase() === 'a') {
+    e.preventDefault()
+    selectTool('select')
+    const objects = doc.annotations()
+    if (objects.length) doc.canvas.setActiveObject(new ActiveSelection(objects, { canvas: doc.canvas }))
+    doc.canvas.requestRenderAll()
+    updateProperties()
+    return
+  }
+  if (primary && !e.altKey && e.key.toLowerCase() === 'd') {
+    e.preventDefault()
+    void duplicateSelection()
+    return
+  }
+  if (primary || e.altKey) return
   const key = e.key.toLowerCase()
   if (key === 'backspace' || key === 'delete') {
     e.preventDefault()
@@ -368,6 +423,24 @@ window.addEventListener('keydown', (e) => {
     if (tools.cropping) return tools.cancelCrop()
     doc.canvas.discardActiveObject()
     doc.canvas.requestRenderAll()
+    return
+  }
+  if (e.key.startsWith('Arrow')) {
+    const selected = doc.canvas.getActiveObjects()
+    if (!selected.length) return
+    e.preventDefault()
+    const amount = e.shiftKey ? 10 : 1
+    const dx = e.key === 'ArrowLeft' ? -amount : e.key === 'ArrowRight' ? amount : 0
+    const dy = e.key === 'ArrowUp' ? -amount : e.key === 'ArrowDown' ? amount : 0
+    for (const o of selected) {
+      o.set({ left: o.left + dx, top: o.top + dy })
+      o.setCoords()
+    }
+    doc.canvas.getActiveObject()?.setCoords()
+    doc.canvas.requestRenderAll()
+    tools.onCommit()
+    markDirty()
+    updateProperties()
     return
   }
   const tool = TOOLS.find((t) => t.key === key)

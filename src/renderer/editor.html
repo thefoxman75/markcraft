@@ -36,6 +36,20 @@
           </div>
         </div>
         <div class="panel-body">
+          <section id="selection-section" class="property-section selection-section" hidden>
+            <div class="selection-metrics" aria-label="Selection position and size">
+              <span><small>X</small><output id="selection-x">0</output></span>
+              <span><small>Y</small><output id="selection-y">0</output></span>
+              <span><small>W</small><output id="selection-width">0</output></span>
+              <span><small>H</small><output id="selection-height">0</output></span>
+            </div>
+            <div class="selection-actions" aria-label="Selection actions">
+              <button id="selection-duplicate" title="Duplicate (Ctrl+D)">Duplicate</button>
+              <button id="selection-front" title="Bring to front">To Front</button>
+              <button id="selection-back" title="Send to back">To Back</button>
+              <button id="selection-delete" class="danger" title="Delete">Delete</button>
+            </div>
+          </section>
           <section id="quick-styles-section" class="property-section">
             <h2>Quick Styles</h2>
             <div id="quick-styles" class="quick-styles" aria-label="Quick styles"></div>

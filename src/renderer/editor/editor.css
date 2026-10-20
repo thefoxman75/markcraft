@@ -236,6 +236,54 @@ body {
   accent-color: var(--accent);
 }
 
+.selection-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.selection-metrics span {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel-2);
+}
+
+.selection-metrics small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.selection-metrics output {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.selection-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.selection-actions button {
+  min-width: 0;
+  padding-inline: 6px;
+  font-size: 11px;
+}
+
+.selection-actions .danger {
+  color: #c92a2a;
+}
+
 .swatches {
   flex-wrap: wrap;
   gap: 7px;

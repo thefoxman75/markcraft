@@ -101,11 +101,16 @@ ipcMain.handle('capture:show', () => showCaptureWindow())
 ipcMain.handle('library:show', () => showLibrary())
 ipcMain.handle('editor:show', () => {
   const shown = showEditor()
-  if (shown) libraryWindow?.hide()
+  const toClose = libraryWindow
+  if (shown) setImmediate(() => toClose?.close())
   return shown
 })
 ipcMain.handle('library:list', (_e, limit?: number) => listCaptures(limit))
-ipcMain.handle('library:open', (_e, filePath: string) => openPath(filePath))
+ipcMain.handle('library:open', (_e, filePath: string) => {
+  openPath(filePath)
+  const toClose = libraryWindow
+  setImmediate(() => toClose?.close())
+})
 ipcMain.handle('capture:run', async (_e, mode: string) => {
   if (mode === 'region') await captureRegion()
   else if (mode === 'window') await openWindowPicker()

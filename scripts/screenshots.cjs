@@ -14,7 +14,9 @@ const PRELOAD = path.join(__dirname, '../out/preload/index.js')
 const WINDOW = { width: 1440, height: 900 }
 const MAX_WIDTH = 1600
 const TEST_PICTURES = fs.mkdtempSync(path.join(os.tmpdir(), 'markcraft-pictures-'))
+const TEST_USER_DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'markcraft-user-data-'))
 app.setPath('pictures', TEST_PICTURES)
+app.setPath('userData', TEST_USER_DATA)
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -186,11 +188,16 @@ async function captureEditor(sample) {
   await wait(300)
   if (editorCount() !== 1) throw new Error(`library item created another editor; found ${editorCount()}`)
   if (!win.getTitle().includes('Sample Capture 1.png')) throw new Error(`existing editor did not load the library item: ${win.getTitle()}`)
-  await libraryWin.webContents.executeJavaScript('window.markcraft.showEditor()')
+  if (!libraryWin.isDestroyed()) throw new Error('opening a library item did not close the library')
+
+  await win.webContents.executeJavaScript('window.markcraft.openLibrary()')
+  await wait(300)
+  const reopenedLibrary = BrowserWindow.getAllWindows().find((candidate) => candidate.webContents.getURL().includes('library.html'))
+  if (!reopenedLibrary) throw new Error('library did not reopen for Back to Editor test')
+  await reopenedLibrary.webContents.executeJavaScript('window.markcraft.showEditor()')
   await wait(100)
-  if (libraryWin.isVisible()) throw new Error('Back to Editor did not hide the library')
-  console.log('single editor: library item reused the existing window; Back to Editor focused it')
-  libraryWin.destroy()
+  if (!reopenedLibrary.isDestroyed()) throw new Error('Back to Editor did not close the library')
+  console.log('single editor: library item reused the existing window; both navigation paths closed the library')
   capture.destroy()
   win.destroy()
 }

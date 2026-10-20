@@ -7,6 +7,7 @@ import { icons } from './icons'
 import { Tools, type SelectionStyle, type Style, type ToolName } from './tools'
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
+const EDITOR_WINDOW_TITLE = 'Markcraft Editor'
 
 const TOOLS: { name: ToolName; label: string; key: string }[] = [
   { name: 'move', label: 'Move', key: 'v' },
@@ -342,7 +343,7 @@ function flash(text: string): void {
 
 function markDirty(): void {
   dirty = true
-  document.title = `${title} — edited`
+  document.title = EDITOR_WINDOW_TITLE
   clearTimeout(autoSaveTimer)
   autoSaveTimer = window.setTimeout(() => void persistEdits(), 700)
 }
@@ -350,7 +351,7 @@ function markDirty(): void {
 function markSaved(path: string): void {
   filePath = path
   title = path.split(/[\\/]/).pop() ?? title
-  document.title = title
+  document.title = EDITOR_WINDOW_TITLE
   dirty = false
 }
 
@@ -360,7 +361,7 @@ async function persistEdits(): Promise<void> {
   dirty = false
   try {
     filePath = await api.autoSaveDoc(filePath, title, doc.toSnapDoc())
-    document.title = title
+    document.title = EDITOR_WINDOW_TITLE
     await loadRecent()
   } catch (error) {
     dirty = true
@@ -635,7 +636,7 @@ async function loadEditor(init: Awaited<ReturnType<typeof api.editorInit>>): Pro
   clearTimeout(autoSaveTimer)
   dirty = false
   title = init.title
-  document.title = title
+  document.title = EDITOR_WINDOW_TITLE
   filePath = init.filePath ?? null
   if (init.kind === 'doc') await doc.loadDoc(init.doc)
   else await doc.loadImage(init.dataUrl)

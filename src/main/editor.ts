@@ -17,11 +17,12 @@ import { createWindow } from './windows'
 
 const pending = new Map<number, EditorInit>()
 let editorWindow: BrowserWindow | null = null
+const EDITOR_WINDOW_TITLE = 'Markcraft Editor'
 
 export function openEditor(init: EditorInit, imageSize?: { width: number; height: number }): BrowserWindow {
   if (editorWindow && !editorWindow.isDestroyed()) {
     pending.set(editorWindow.webContents.id, init)
-    editorWindow.setTitle(init.title)
+    editorWindow.setTitle(EDITOR_WINDOW_TITLE)
     editorWindow.webContents.send('editor:load', init)
     editorWindow.show()
     editorWindow.focus()
@@ -42,7 +43,7 @@ export function openEditor(init: EditorInit, imageSize?: { width: number; height
     y: Math.round(work.y + (work.height - height) / 2),
     minWidth: 640,
     minHeight: 420,
-    title: init.title,
+    title: EDITOR_WINDOW_TITLE,
     backgroundColor: '#1e1f22'
   })
   editorWindow = win

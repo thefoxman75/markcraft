@@ -9,7 +9,7 @@ const grid = document.getElementById('grid')!
 function render(): void {
   grid.replaceChildren()
   const shown = items.filter((item) => {
-    const matchesFilter = filter === 'all' || (filter === 'images' ? item.kind === 'image' : new Date(item.modified).getFullYear() === filter)
+    const matchesFilter = filter === 'all' || (filter === 'images' ? item.kind === 'image' : new Date(item.captured).getFullYear() === filter)
     return matchesFilter && item.name.toLowerCase().includes(query.toLowerCase())
   })
   document.getElementById('empty')!.hidden = shown.length > 0
@@ -25,7 +25,7 @@ function render(): void {
     const name = document.createElement('strong')
     name.textContent = item.name
     const date = document.createElement('small')
-    date.textContent = new Date(item.modified).toLocaleString()
+    date.textContent = new Date(item.captured).toLocaleString()
     button.append(thumb, name, date)
     button.addEventListener('dblclick', () => void api.openLibraryItem(item.filePath))
     grid.append(button)
@@ -35,7 +35,7 @@ function render(): void {
 async function load(): Promise<void> {
   items = await api.libraryItems()
   document.getElementById('count')!.textContent = String(items.length)
-  const years = [...new Set(items.map((item) => new Date(item.modified).getFullYear()))]
+  const years = [...new Set(items.map((item) => new Date(item.captured).getFullYear()))]
   document.getElementById('years')!.replaceChildren(...years.map((year) => {
     const button = document.createElement('button')
     button.textContent = String(year)

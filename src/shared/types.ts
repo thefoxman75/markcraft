@@ -66,6 +66,7 @@ export interface LibraryItem {
   filePath: string
   name: string
   thumbnail: string
+  captured: number
   modified: number
   kind: 'image' | 'document'
 }

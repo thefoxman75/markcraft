@@ -34,7 +34,9 @@ export function listCaptures(limit = 500): LibraryItem[] {
     .map((name) => {
       const filePath = join(dir, name)
       try {
-        const modified = statSync(filePath).mtimeMs
+        const stats = statSync(filePath)
+        const modified = stats.mtimeMs
+        const captured = captureTime(name, stats.birthtimeMs || modified)
         const document = name.toLowerCase().endsWith('.markcraft')
         const image = document
           ? (() => {
@@ -52,6 +54,7 @@ export function listCaptures(limit = 500): LibraryItem[] {
           filePath,
           name,
           thumbnail: thumb.toDataURL(),
+          captured,
           modified,
           kind: document ? 'document' as const : 'image' as const
         }
@@ -60,12 +63,27 @@ export function listCaptures(limit = 500): LibraryItem[] {
       }
     })
     .filter((item): item is LibraryItem => item !== null)
-    .sort((a, b) => b.modified - a.modified || Number(b.kind === 'document') - Number(a.kind === 'document'))
-  const seen = new Set<string>()
-  return items.filter((item) => {
+
+  const captures = new Map<string, LibraryItem>()
+  for (const item of items) {
     const stem = basename(item.name, extname(item.name)).toLowerCase()
-    if (seen.has(stem)) return false
-    seen.add(stem)
-    return true
-  }).slice(0, Math.max(1, limit))
+    const current = captures.get(stem)
+    if (!current) {
+      captures.set(stem, item)
+      continue
+    }
+    const preferred = item.kind === 'document' && current.kind !== 'document' ? item : current
+    captures.set(stem, { ...preferred, captured: Math.min(current.captured, item.captured) })
+  }
+  return [...captures.values()]
+    .sort((a, b) => b.captured - a.captured)
+    .slice(0, Math.max(1, limit))
+}
+
+function captureTime(name: string, fallback: number): number {
+  const match = name.match(/(\d{4})-(\d{2})-(\d{2}) at (\d{2})\.(\d{2})\.(\d{2})/)
+  if (!match) return fallback
+  const [, year, month, day, hour, minute, second] = match
+  const time = new Date(+year, +month - 1, +day, +hour, +minute, +second).getTime()
+  return Number.isNaN(time) ? fallback : time
 }

@@ -183,23 +183,26 @@ async function captureEditor(sample) {
   if (!libraryWin) throw new Error('library window was not created')
   await save(libraryWin, 'library')
   const editorCount = () => BrowserWindow.getAllWindows().filter((candidate) => candidate.webContents.getURL().includes('editor.html')).length
-  if (editorCount() !== 1) throw new Error(`expected one editor before opening a library item, found ${editorCount()}`)
+  if (editorCount() !== 0) throw new Error(`opening the library did not close the editor; found ${editorCount()}`)
   await libraryWin.webContents.executeJavaScript(`window.markcraft.openLibraryItem(${JSON.stringify(path.join(library, 'Sample Capture 1.png'))})`)
   await wait(300)
   if (editorCount() !== 1) throw new Error(`library item created another editor; found ${editorCount()}`)
-  if (!win.getTitle().includes('Sample Capture 1.png')) throw new Error(`existing editor did not load the library item: ${win.getTitle()}`)
   if (!libraryWin.isDestroyed()) throw new Error('opening a library item did not close the library')
 
-  await win.webContents.executeJavaScript('window.markcraft.openLibrary()')
+  const replacementEditor = BrowserWindow.getAllWindows().find((candidate) => candidate.webContents.getURL().includes('editor.html'))
+  if (!replacementEditor?.getTitle().includes('Sample Capture 1.png')) throw new Error(`editor did not load the library item: ${replacementEditor?.getTitle()}`)
+  await replacementEditor.webContents.executeJavaScript('window.markcraft.openLibrary()')
   await wait(300)
   const reopenedLibrary = BrowserWindow.getAllWindows().find((candidate) => candidate.webContents.getURL().includes('library.html'))
   if (!reopenedLibrary) throw new Error('library did not reopen for Back to Editor test')
-  await reopenedLibrary.webContents.executeJavaScript('window.markcraft.showEditor()')
-  await wait(100)
+  if (editorCount() !== 0) throw new Error('reopening the library did not close the editor')
+  await reopenedLibrary.webContents.executeJavaScript("document.getElementById('back-editor').click()")
+  await wait(300)
   if (!reopenedLibrary.isDestroyed()) throw new Error('Back to Editor did not close the library')
-  console.log('single editor: library item reused the existing window; both navigation paths closed the library')
+  if (editorCount() !== 1) throw new Error('Back to Editor did not restore one editor')
+  console.log('exclusive navigation: Editor → Library → Editor always left one content window open')
   capture.destroy()
-  win.destroy()
+  if (!win.isDestroyed()) win.destroy()
 }
 
 async function captureOverlay(sample) {

@@ -28,7 +28,7 @@ The Select tool also shows eight handles around the captured canvas. Dragging an
 
 Markcraft now opens with a dedicated capture window, and the tray icon restores it. Auto-saved captures in `Pictures/Markcraft` form a persistent Library with search, dates and thumbnails. Editors include a collapsible recent-captures strip with shortcuts back to Capture and Library; selecting a recent thumbnail reopens that saved capture.
 
-The editor is a single reusable window. Opening a capture from the Library or recent strip replaces the document in that window, resets its undo history and updates the active thumbnail instead of opening another editor. Opening a Library item or choosing Back to Editor closes the Library and focuses the current document.
+Markcraft keeps the Editor and Library mutually exclusive. Opening the Library closes the Editor; opening a Library item or choosing Back to Editor closes the Library and restores one Editor window. Recent-strip items still replace the current document in place, reset its undo history and update the active thumbnail.
 
 Validation for this milestone passed on October 19, 2026: TypeScript checking, all seven unit tests, the production build, the native Electron editor smoke test, and screenshot generation. The smoke test covered drawing, undo/redo, exact crop dimensions, editable document saving, and burned-in redactions. Updated editor, OCR and selection screenshots are stored in `docs/screenshots/`.
 

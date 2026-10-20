@@ -98,7 +98,11 @@ function showLibrary(): void {
 }
 
 ipcMain.handle('capture:show', () => showCaptureWindow())
-ipcMain.handle('library:show', () => showLibrary())
+ipcMain.handle('library:show', (event) => {
+  showLibrary()
+  const source = BrowserWindow.fromWebContents(event.sender)
+  if (source?.webContents.getURL().includes('editor.html')) setImmediate(() => source.close())
+})
 ipcMain.handle('editor:show', () => {
   const shown = showEditor()
   const toClose = libraryWindow

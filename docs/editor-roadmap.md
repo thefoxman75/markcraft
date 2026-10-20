@@ -30,6 +30,8 @@ Markcraft now opens with a dedicated capture window, and the tray icon restores 
 
 Markcraft keeps the Editor and Library mutually exclusive. Opening the Library closes the Editor; opening a Library item or choosing Back to Editor closes the Library and restores one Editor window. Recent-strip items still replace the current document in place, reset its undo history and update the active thumbnail.
 
+Selection work has begun by separating annotation **Move** from pixel **Selection**. Rectangle and ellipse pixel selections support Copy, Cut, Delete-to-transparency and Crop, with background edits stored in undo/redo history. Polygon, freehand, multiple/inverted selections, moving selected pixels and content-aware Auto-Fill remain in the next selection milestones.
+
 Validation for this milestone passed on October 19, 2026: TypeScript checking, all seven unit tests, the production build, the native Electron editor smoke test, and screenshot generation. The smoke test covered drawing, undo/redo, exact crop dimensions, editable document saving, and burned-in redactions. Updated editor, OCR and selection screenshots are stored in `docs/screenshots/`.
 
 Deliver one complete editing workflow: **open a screenshot, choose a tool, draw an annotation, adjust its appearance, undo a change, then copy or save the result**.

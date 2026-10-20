@@ -45,6 +45,7 @@ export interface DocState {
   height: number
   bgLeft: number
   bgTop: number
+  bgDataUrl: string
   objects: unknown[]
 }
 
@@ -126,6 +127,7 @@ export class EditorDoc {
       height: this.height,
       bgLeft: this.bg.left,
       bgTop: this.bg.top,
+      bgDataUrl: this.bg.getSrc(),
       objects: this.annotations().map((o) => {
         const json = o.toObject(CUSTOM_PROPS) as SerializedObject
         if (json.snapAsset && json.src) {
@@ -141,8 +143,13 @@ export class EditorDoc {
     this.canvas.discardActiveObject()
     this.width = state.width
     this.height = state.height
-    this.bg.set({ left: state.bgLeft, top: state.bgTop })
-    this.bg.setCoords()
+    if (this.bg.getSrc() !== state.bgDataUrl) {
+      this.canvas.remove(this.bg)
+      this.setBackground(await FabricImage.fromURL(state.bgDataUrl), state.bgLeft, state.bgTop)
+    } else {
+      this.bg.set({ left: state.bgLeft, top: state.bgTop })
+      this.bg.setCoords()
+    }
     await this.setAnnotations(this.inlineAssets(state.objects))
     this.applyZoom(this.zoom)
   }
@@ -232,6 +239,43 @@ export class EditorDoc {
       out.height
     )
     return out
+  }
+
+  /** Flatten just a selected region, optionally clipped to an ellipse. */
+  selectionPixels(r: Rect, ellipse = false): string {
+    const active = this.canvas.getActiveObject()
+    this.canvas.discardActiveObject()
+    this.canvas.renderAll()
+    const source = this.canvas.toCanvasElement(1 / this.zoom)
+    if (active) this.canvas.setActiveObject(active)
+    const out = document.createElement('canvas')
+    out.width = Math.max(1, Math.round(r.width))
+    out.height = Math.max(1, Math.round(r.height))
+    const ctx = out.getContext('2d')!
+    if (ellipse) {
+      ctx.ellipse(out.width / 2, out.height / 2, out.width / 2, out.height / 2, 0, 0, Math.PI * 2)
+      ctx.clip()
+    }
+    ctx.drawImage(source, r.x, r.y, r.width, r.height, 0, 0, out.width, out.height)
+    return out.toDataURL('image/png')
+  }
+
+  /** Remove pixels from the background while leaving annotations editable. */
+  async eraseBackground(r: Rect, ellipse = false): Promise<void> {
+    const out = document.createElement('canvas')
+    out.width = this.width
+    out.height = this.height
+    const ctx = out.getContext('2d')!
+    ctx.drawImage(this.bg.getElement() as CanvasImageSource, this.bg.left, this.bg.top)
+    ctx.globalCompositeOperation = 'destination-out'
+    if (ellipse) {
+      ctx.beginPath()
+      ctx.ellipse(r.x + r.width / 2, r.y + r.height / 2, r.width / 2, r.height / 2, 0, 0, Math.PI * 2)
+      ctx.fill()
+    } else ctx.fillRect(r.x, r.y, r.width, r.height)
+    this.canvas.remove(this.bg)
+    this.setBackground(await FabricImage.fromURL(out.toDataURL('image/png')), 0, 0)
+    this.canvas.requestRenderAll()
   }
 
   /** Shift everything so `r` becomes the new document bounds. */

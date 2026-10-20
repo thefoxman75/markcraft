@@ -3,7 +3,8 @@ const svg = (body: string) =>
   `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`
 
 export const icons = {
-  select: svg('<path d="M5 3l10 6.5-4.5 1.2L8.3 15z"/>'),
+  move: svg('<path d="M5 3l10 6.5-4.5 1.2L8.3 15z"/>'),
+  select: svg('<rect x="3.5" y="3.5" width="13" height="13" rx="1" stroke-dasharray="2.5 2.5"/>'),
   arrow: svg('<path d="M4 16L15 5"/><path d="M8.5 4.5H15.5V11.5"/>'),
   line: svg('<path d="M4 16L16 4"/>'),
   rect: svg('<rect x="3.5" y="5" width="13" height="10" rx="1.5"/>'),

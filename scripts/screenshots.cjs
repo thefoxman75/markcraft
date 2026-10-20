@@ -165,6 +165,27 @@ async function captureEditor(sample) {
   if (restored !== dims) throw new Error(`undo restored ${restored}, expected ${dims}`)
   console.log('canvas resize:', dims, '→', resized, '→ undo', restored)
 
+  const pixelSelection = await win.webContents.executeJavaScript(`(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+    const upper = document.querySelector('.upper-canvas')
+    const box = upper.getBoundingClientRect()
+    const fire = (type, x, y) => (type === 'mousedown' ? upper : document).dispatchEvent(new MouseEvent(type, {
+      bubbles: true, button: 0, buttons: type === 'mouseup' ? 0 : 1,
+      clientX: box.left + x * box.width / 1280, clientY: box.top + y * box.height / 800
+    }))
+    fire('mousedown', 35, 35); fire('mousemove', 115, 90); fire('mouseup', 115, 90)
+    await wait(80)
+    const selected = !document.getElementById('pixel-selection-section').hidden
+    document.getElementById('pixel-delete').click()
+    await wait(180)
+    return { selected, undoable: !document.querySelector('[data-action="undo"]').disabled }
+  })()`)
+  if (!pixelSelection.selected || !pixelSelection.undoable) throw new Error(`pixel selection failed: ${JSON.stringify(pixelSelection)}`)
+  win.webContents.send('menu', 'undo')
+  await wait(200)
+  console.log('pixel selection: rectangle delete created an undoable transparent edit')
+
   win.webContents.send('menu', 'ocr')
   for (let i = 0; i < 60; i++) {
     await wait(250)

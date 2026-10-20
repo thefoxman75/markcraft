@@ -48,6 +48,21 @@
           </div>
         </div>
         <div class="panel-body">
+          <section id="pixel-selection-section" class="property-section" hidden>
+            <h2>Selection Shape</h2>
+            <div class="selection-shapes">
+              <button data-selection-shape="rect" aria-pressed="true">Rectangle</button>
+              <button data-selection-shape="ellipse" aria-pressed="false">Ellipse</button>
+            </div>
+            <h2 class="selection-actions-title">Selection Actions</h2>
+            <div class="selection-actions">
+              <button id="pixel-copy">Copy</button>
+              <button id="pixel-cut">Cut</button>
+              <button id="pixel-delete" class="danger">Delete</button>
+              <button id="pixel-crop">Crop</button>
+            </div>
+            <p class="property-help">Drag on the image to select pixels. Deleted areas become transparent.</p>
+          </section>
           <section id="selection-section" class="property-section selection-section" hidden>
             <div class="selection-metrics" aria-label="Selection position and size">
               <span><small>X</small><output id="selection-x">0</output></span>

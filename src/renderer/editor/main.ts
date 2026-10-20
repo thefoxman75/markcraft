@@ -9,7 +9,8 @@ import { Tools, type SelectionStyle, type Style, type ToolName } from './tools'
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
 
 const TOOLS: { name: ToolName; label: string; key: string }[] = [
-  { name: 'select', label: 'Select', key: 'v' },
+  { name: 'move', label: 'Move', key: 'v' },
+  { name: 'select', label: 'Selection', key: 's' },
   { name: 'arrow', label: 'Arrow', key: 'a' },
   { name: 'line', label: 'Line', key: 'l' },
   { name: 'rect', label: 'Rectangle', key: 'r' },
@@ -62,7 +63,7 @@ function selectTool(name: ToolName): void {
   activeTool = name
   tools.setTool(name)
   for (const [n, b] of toolButtons) b.setAttribute('aria-pressed', String(n === name))
-  $('canvas-bounds').hidden = name !== 'select'
+  $('canvas-bounds').hidden = name !== 'move'
   showProperties()
   updateProperties()
 }
@@ -217,6 +218,7 @@ function updateProperties(): void {
   const mixed = selection?.kind === 'mixed'
   const fixedWidthSelection = selectedTool === 'arrow' || selectedTool === 'step'
   $('selection-section').hidden = !selection
+  $('pixel-selection-section').hidden = activeTool !== 'select'
   if (selection) {
     $('selection-x').textContent = String(selection.x)
     $('selection-y').textContent = String(selection.y)
@@ -427,6 +429,10 @@ $('ocr-copy').addEventListener('click', async () => {
 })
 
 function deleteSelection(): void {
+  if (tools.hasPixelSelection) {
+    void tools.deletePixelSelection()
+    return
+  }
   const c = doc.canvas
   const selected = c.getActiveObjects()
   if (!selected.length) return
@@ -468,6 +474,24 @@ $('selection-delete').addEventListener('click', deleteSelection)
 $('selection-front').addEventListener('click', () => reorderSelection(true))
 $('selection-back').addEventListener('click', () => reorderSelection(false))
 
+document.querySelectorAll<HTMLButtonElement>('[data-selection-shape]').forEach((button) => {
+  button.addEventListener('click', () => {
+    tools.selectionShape = button.dataset.selectionShape as 'rect' | 'ellipse'
+    document.querySelectorAll<HTMLButtonElement>('[data-selection-shape]').forEach((item) =>
+      item.setAttribute('aria-pressed', String(item === button)))
+  })
+})
+$('pixel-copy').addEventListener('click', () => {
+  const data = tools.pixelSelectionData()
+  if (data) void api.copyImage(data).then(() => flash('Selection copied'))
+})
+$('pixel-cut').addEventListener('click', () => {
+  const data = tools.pixelSelectionData()
+  if (data) void api.copyImage(data).then(() => tools.deletePixelSelection())
+})
+$('pixel-delete').addEventListener('click', () => void tools.deletePixelSelection())
+$('pixel-crop').addEventListener('click', () => tools.cropPixelSelection())
+
 // ---- keyboard & menu --------------------------------------------------------------
 
 const editingText = () => {
@@ -491,6 +515,12 @@ window.addEventListener('keydown', (e) => {
   if (primary && !e.altKey && e.key.toLowerCase() === 'd') {
     e.preventDefault()
     void duplicateSelection()
+    return
+  }
+  if (primary && !e.altKey && e.key.toLowerCase() === 'x' && tools.hasPixelSelection) {
+    e.preventDefault()
+    const data = tools.pixelSelectionData()
+    if (data) void api.copyImage(data).then(() => tools.deletePixelSelection())
     return
   }
   if (primary || e.altKey) return
@@ -533,7 +563,8 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('copy', (e) => {
   if (editingText()) return
   e.preventDefault()
-  void copyImage()
+  const selected = tools.pixelSelectionData()
+  void (selected ? api.copyImage(selected).then(() => flash('Selection copied')) : copyImage())
 })
 
 const commands: Record<MenuCommand, () => unknown> = {

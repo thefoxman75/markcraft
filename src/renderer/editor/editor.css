@@ -360,6 +360,10 @@ body {
   color: #c92a2a;
 }
 
+.selection-shapes { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.selection-shapes button[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); }
+.selection-actions-title { margin-top: 16px !important; }
+
 .swatches {
   flex-wrap: wrap;
   gap: 7px;

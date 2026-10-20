@@ -18,6 +18,7 @@ import type { EditorDoc, SnapKind } from './doc'
 import { blockSize, pixelate } from './redact'
 
 export type ToolName =
+  | 'move'
   | 'select'
   | 'arrow'
   | 'line'
@@ -102,6 +103,8 @@ export class Tools {
   tool: ToolName = 'arrow'
   private drag: { start: Point; obj: FabricObject | null } | null = null
   private cropBox: Rect | null = null
+  private pixelSelection: Rect | Ellipse | null = null
+  selectionShape: 'rect' | 'ellipse' = 'rect'
   onCommit: () => void = () => undefined
   onCropChange: (active: boolean) => void = () => undefined
 
@@ -125,6 +128,10 @@ export class Tools {
 
   setTool(tool: ToolName): void {
     if (this.tool === 'crop' && tool !== 'crop') this.cancelCrop()
+    if (this.tool === 'select' && tool !== 'select' && this.pixelSelection) {
+      this.doc.canvas.remove(this.pixelSelection)
+      this.pixelSelection = null
+    }
     this.tool = tool
     const c = this.doc.canvas
     const { color, width } = this.style()
@@ -136,8 +143,8 @@ export class Tools {
       brush.decimate = 2
       c.freeDrawingBrush = brush
     }
-    c.selection = tool === 'select'
-    c.defaultCursor = tool === 'select' ? 'default' : tool === 'text' ? 'text' : 'crosshair'
+    c.selection = tool === 'move'
+    c.defaultCursor = tool === 'move' ? 'default' : tool === 'text' ? 'text' : 'crosshair'
     c.discardActiveObject()
     c.requestRenderAll()
   }
@@ -214,9 +221,13 @@ export class Tools {
 
   private down(o: TPointerEventInfo): void {
     const tool = this.tool
-    if (tool === 'select' || tool === 'pen') return
+    if (tool === 'move' || tool === 'pen') return
+    if (tool === 'select' && this.pixelSelection) {
+      this.doc.canvas.remove(this.pixelSelection)
+      this.pixelSelection = null
+    }
     // Clicking an existing annotation selects/moves it instead of drawing.
-    if (o.target && o.target !== this.doc.bg && o.target !== this.cropBox) return
+    if (tool !== 'select' && o.target && o.target !== this.doc.bg && o.target !== this.cropBox) return
     const p = this.point(o)
     if (tool === 'text') return this.addText(p)
     if (tool === 'step') return this.addStep(p)
@@ -242,6 +253,25 @@ export class Tools {
     let obj = this.drag.obj
 
     switch (this.tool) {
+      case 'select':
+        if (!obj) {
+          const options = {
+            fill: 'rgba(39,134,184,0.12)',
+            stroke: '#2786b8',
+            strokeWidth: 1,
+            strokeDashArray: [6, 4],
+            strokeUniform: true,
+            excludeFromExport: true,
+            evented: false
+          }
+          obj = this.selectionShape === 'ellipse'
+            ? new Ellipse({ ...options, rx: 0, ry: 0 })
+            : new Rect(options)
+          c.add(obj)
+        }
+        if (obj instanceof Ellipse) obj.set({ left: box.x, top: box.y, rx: box.width / 2, ry: box.height / 2 })
+        else obj.set({ left: box.x, top: box.y, width: box.width, height: box.height })
+        break
       case 'arrow':
       case 'line': {
         // Paths can't be reshaped in place; rebuild while dragging.
@@ -349,6 +379,11 @@ export class Tools {
     if (this.tool === 'crop') {
       this.cropBox = obj as Rect
       this.onCropChange(true)
+      return
+    }
+    if (this.tool === 'select') {
+      this.pixelSelection = obj as Rect | Ellipse
+      c.requestRenderAll()
       return
     }
     if (this.tool === 'redact') {
@@ -461,5 +496,44 @@ export class Tools {
 
   get cropping(): boolean {
     return this.cropBox !== null
+  }
+
+  get hasPixelSelection(): boolean {
+    return this.pixelSelection !== null
+  }
+
+  pixelSelectionData(): string | null {
+    const box = this.pixelBox()
+    return box ? this.doc.selectionPixels(box, this.pixelSelection instanceof Ellipse) : null
+  }
+
+  async deletePixelSelection(): Promise<boolean> {
+    const box = this.pixelBox()
+    if (!box) return false
+    await this.doc.eraseBackground(box, this.pixelSelection instanceof Ellipse)
+    this.doc.canvas.remove(this.pixelSelection!)
+    this.pixelSelection = null
+    this.onCommit()
+    return true
+  }
+
+  cropPixelSelection(): boolean {
+    const box = this.pixelBox()
+    if (!box) return false
+    this.doc.canvas.remove(this.pixelSelection!)
+    this.pixelSelection = null
+    this.doc.crop(box)
+    this.onCommit()
+    return true
+  }
+
+  private pixelBox(): Box | null {
+    if (!this.pixelSelection) return null
+    return {
+      x: this.pixelSelection.left,
+      y: this.pixelSelection.top,
+      width: this.pixelSelection.getScaledWidth(),
+      height: this.pixelSelection.getScaledHeight()
+    }
   }
 }

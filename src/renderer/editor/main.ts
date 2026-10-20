@@ -40,6 +40,8 @@ const QUICK_STYLES: { label: string; color: string; width: number; fontSize: num
 let filePath: string | null = null
 let title = 'Markcraft'
 let activeTool: ToolName = 'arrow'
+let dirty = false
+let autoSaveTimer = 0
 
 const doc = new EditorDoc($<HTMLCanvasElement>('canvas'))
 const history = new History(doc)
@@ -339,13 +341,31 @@ function flash(text: string): void {
 }
 
 function markDirty(): void {
+  dirty = true
   document.title = `${title} — edited`
+  clearTimeout(autoSaveTimer)
+  autoSaveTimer = window.setTimeout(() => void persistEdits(), 700)
 }
 
 function markSaved(path: string): void {
   filePath = path
   title = path.split(/[\\/]/).pop() ?? title
   document.title = title
+  dirty = false
+}
+
+async function persistEdits(): Promise<void> {
+  if (!dirty) return
+  clearTimeout(autoSaveTimer)
+  dirty = false
+  try {
+    filePath = await api.autoSaveDoc(filePath, title, doc.toSnapDoc())
+    document.title = title
+    await loadRecent()
+  } catch (error) {
+    dirty = true
+    flash(`Auto-save failed: ${(error as Error).message}`)
+  }
 }
 
 async function loadRecent(): Promise<void> {
@@ -362,12 +382,18 @@ async function loadRecent(): Promise<void> {
     image.src = item.thumbnail
     image.alt = item.name
     button.append(image)
-    button.addEventListener('click', () => void api.openLibraryItem(item.filePath))
+    button.addEventListener('click', async () => {
+      await persistEdits()
+      await api.openLibraryItem(item.filePath)
+    })
     list.append(button)
   }
 }
 
-$('recent-library').addEventListener('click', () => void api.openLibrary())
+$('recent-library').addEventListener('click', async () => {
+  await persistEdits()
+  await api.openLibrary()
+})
 $('recent-capture').addEventListener('click', () => void api.openCaptureWindow())
 $('recent-toggle').addEventListener('click', () => {
   const panel = $('recent-panel')
@@ -606,6 +632,8 @@ api.onMenu((cmd) => void commands[cmd]?.())
 // ---- startup ------------------------------------------------------------------------
 
 async function loadEditor(init: Awaited<ReturnType<typeof api.editorInit>>): Promise<void> {
+  clearTimeout(autoSaveTimer)
+  dirty = false
   title = init.title
   document.title = title
   filePath = init.filePath ?? null

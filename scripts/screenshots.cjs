@@ -145,6 +145,12 @@ async function captureEditor(sample) {
     annotate({ ...sample.boxes, imageWidth: sample.image.getSize().width }, scale)
   )
   console.log('annotated', dims)
+  await wait(900)
+  const editable = path.join(library, 'Acme Projects.markcraft')
+  if (!fs.existsSync(editable)) throw new Error('edited capture was not auto-saved as a .markcraft document')
+  const editableDoc = JSON.parse(fs.readFileSync(editable, 'utf8'))
+  if (editableDoc.objects.length < 6) throw new Error(`editable auto-save lost annotations: ${editableDoc.objects.length} layers`)
+  console.log(`editable auto-save: ${path.basename(editable)}, ${editableDoc.objects.length} annotation layers retained`)
   await save(win, 'editor')
 
   // Exercise a real canvas handle, then undo so the OCR screenshot retains

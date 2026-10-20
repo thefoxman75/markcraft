@@ -20,4 +20,4 @@ document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((button) => 
 })
 document.getElementById('capture')!.addEventListener('click', () => void api.runCapture(mode))
 document.getElementById('library')!.addEventListener('click', () => void api.openLibrary())
-document.getElementById('open-editor')!.addEventListener('click', () => void api.openLibrary())
+document.getElementById('open-editor')!.addEventListener('click', () => void api.openEditor())

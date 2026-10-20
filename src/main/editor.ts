@@ -8,8 +8,8 @@ import {
   screen,
   type NativeImage
 } from 'electron'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { basename, extname } from 'node:path'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, extname, join } from 'node:path'
 import type { EditorInit, SaveRequest, SnapDoc } from '../shared/types'
 import { autoSaveCapture, capturesDir, timestampName } from './library'
 import { warmOcr } from './ocr'
@@ -154,4 +154,14 @@ ipcMain.handle('file:save-as', async (e, req: SaveRequest) => {
 ipcMain.handle('file:save-doc', (_e, filePath: string, doc: SnapDoc) => {
   if (extname(filePath).toLowerCase() !== '.markcraft') throw new Error('Not a .markcraft path')
   writeFileSync(filePath, JSON.stringify(doc))
+})
+
+ipcMain.handle('file:auto-save-doc', (_e, sourcePath: string | null, title: string, doc: SnapDoc) => {
+  mkdirSync(capturesDir(), { recursive: true })
+  const sourceName = sourcePath ? basename(sourcePath, extname(sourcePath)) : title.replace(/\.[^.]+$/, '')
+  const filePath = sourcePath?.toLowerCase().endsWith('.markcraft')
+    ? sourcePath
+    : join(capturesDir(), `${sourceName}.markcraft`)
+  writeFileSync(filePath, JSON.stringify(doc))
+  return filePath
 })

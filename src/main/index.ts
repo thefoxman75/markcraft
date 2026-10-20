@@ -98,6 +98,12 @@ function showLibrary(): void {
 }
 
 ipcMain.handle('capture:show', () => showCaptureWindow())
+ipcMain.handle('editor:open', () => {
+  if (showEditor()) return
+  const newest = listCaptures(1)[0]
+  if (newest) openPath(newest.filePath)
+  else void openFileDialog()
+})
 ipcMain.handle('library:show', (event) => {
   showLibrary()
   const source = BrowserWindow.fromWebContents(event.sender)

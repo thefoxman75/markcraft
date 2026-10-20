@@ -34,6 +34,8 @@ const api = {
   saveAs: (req: SaveRequest): Promise<string | null> => ipcRenderer.invoke('file:save-as', req),
   saveDoc: (filePath: string, doc: SnapDoc): Promise<void> =>
     ipcRenderer.invoke('file:save-doc', filePath, doc),
+  autoSaveDoc: (sourcePath: string | null, title: string, doc: SnapDoc): Promise<string> =>
+    ipcRenderer.invoke('file:auto-save-doc', sourcePath, title, doc),
   ocr: (dataUrl: string): Promise<string> => ipcRenderer.invoke('ocr:recognize', dataUrl),
   onMenu: (cb: (cmd: MenuCommand) => void): void => {
     ipcRenderer.on('menu', (_e, cmd: MenuCommand) => cb(cmd))
@@ -43,6 +45,7 @@ const api = {
   runCapture: (mode: 'region' | 'window' | 'screen' | 'scroll' | 'record'): Promise<void> =>
     ipcRenderer.invoke('capture:run', mode),
   openCaptureWindow: (): Promise<void> => ipcRenderer.invoke('capture:show'),
+  openEditor: (): Promise<void> => ipcRenderer.invoke('editor:open'),
   openLibrary: (): Promise<void> => ipcRenderer.invoke('library:show'),
   showEditor: (): Promise<boolean> => ipcRenderer.invoke('editor:show'),
   libraryItems: (limit?: number): Promise<LibraryItem[]> => ipcRenderer.invoke('library:list', limit),

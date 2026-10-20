@@ -1,6 +1,6 @@
 import { app, nativeImage, type NativeImage } from 'electron'
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, extname, join } from 'node:path'
 import type { LibraryItem, SnapDoc } from '../shared/types'
 import { getSettings } from './settings'
 
@@ -29,7 +29,7 @@ const LIBRARY_FILE = /\.(markcraft|png|jpe?g|gif|webp|bmp)$/i
 export function listCaptures(limit = 500): LibraryItem[] {
   const dir = capturesDir()
   mkdirSync(dir, { recursive: true })
-  return readdirSync(dir)
+  const items = readdirSync(dir)
     .filter((name) => LIBRARY_FILE.test(name))
     .map((name) => {
       const filePath = join(dir, name)
@@ -57,6 +57,12 @@ export function listCaptures(limit = 500): LibraryItem[] {
       }
     })
     .filter((item): item is LibraryItem => item !== null)
-    .sort((a, b) => b.modified - a.modified)
-    .slice(0, Math.max(1, limit))
+    .sort((a, b) => b.modified - a.modified || Number(b.kind === 'document') - Number(a.kind === 'document'))
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const stem = basename(item.name, extname(item.name)).toLowerCase()
+    if (seen.has(stem)) return false
+    seen.add(stem)
+    return true
+  }).slice(0, Math.max(1, limit))
 }

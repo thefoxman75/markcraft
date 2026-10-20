@@ -175,16 +175,20 @@ async function captureEditor(sample) {
       clientX: box.left + x * box.width / 1280, clientY: box.top + y * box.height / 800
     }))
     fire('mousedown', 35, 35); fire('mousemove', 115, 90); fire('mouseup', 115, 90)
-    await wait(80)
+    await wait(220)
     const selected = !document.getElementById('pixel-selection-section').hidden
+    const beforeMove = Number(document.getElementById('selection-x').textContent)
+    fire('mousedown', 75, 60); fire('mousemove', 175, 110); fire('mouseup', 175, 110)
+    await wait(120)
+    const afterMove = Number(document.getElementById('selection-x').textContent)
     document.getElementById('pixel-delete').click()
     await wait(180)
-    return { selected, undoable: !document.querySelector('[data-action="undo"]').disabled }
+    return { selected, moved: afterMove > beforeMove + 50, beforeMove, afterMove, undoable: !document.querySelector('[data-action="undo"]').disabled }
   })()`)
-  if (!pixelSelection.selected || !pixelSelection.undoable) throw new Error(`pixel selection failed: ${JSON.stringify(pixelSelection)}`)
+  if (!pixelSelection.selected || !pixelSelection.moved || !pixelSelection.undoable) throw new Error(`pixel selection failed: ${JSON.stringify(pixelSelection)}`)
   win.webContents.send('menu', 'undo')
   await wait(200)
-  console.log('pixel selection: rectangle delete created an undoable transparent edit')
+  console.log('pixel selection: lifted pixels moved with handles; delete created an undoable transparent edit')
 
   win.webContents.send('menu', 'ocr')
   for (let i = 0; i < 60; i++) {

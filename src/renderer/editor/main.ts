@@ -156,7 +156,10 @@ tools.onCommit = () => {
   history.commit()
   markDirty()
 }
-doc.canvas.on('object:modified', tools.onCommit)
+doc.canvas.on('object:modified', () => {
+  tools.onCommit()
+  updateProperties()
+})
 doc.canvas.on('selection:created', updateProperties)
 doc.canvas.on('selection:updated', updateProperties)
 doc.canvas.on('selection:cleared', updateProperties)

@@ -39,6 +39,7 @@ export type SnapKind =
   | 'pen'
   | 'redact'
   | 'block'
+  | 'pixel'
 
 export interface DocState {
   width: number

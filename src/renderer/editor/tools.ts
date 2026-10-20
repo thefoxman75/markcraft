@@ -103,7 +103,7 @@ export class Tools {
   tool: ToolName = 'arrow'
   private drag: { start: Point; obj: FabricObject | null } | null = null
   private cropBox: Rect | null = null
-  private pixelSelection: Rect | Ellipse | null = null
+  private pixelSelection: FabricImage | null = null
   selectionShape: 'rect' | 'ellipse' = 'rect'
   onCommit: () => void = () => undefined
   onCropChange: (active: boolean) => void = () => undefined
@@ -129,7 +129,6 @@ export class Tools {
   setTool(tool: ToolName): void {
     if (this.tool === 'crop' && tool !== 'crop') this.cancelCrop()
     if (this.tool === 'select' && tool !== 'select' && this.pixelSelection) {
-      this.doc.canvas.remove(this.pixelSelection)
       this.pixelSelection = null
     }
     this.tool = tool
@@ -223,7 +222,8 @@ export class Tools {
     const tool = this.tool
     if (tool === 'move' || tool === 'pen') return
     if (tool === 'select' && this.pixelSelection) {
-      this.doc.canvas.remove(this.pixelSelection)
+      if (o.target === this.pixelSelection) return
+      this.doc.canvas.discardActiveObject()
       this.pixelSelection = null
     }
     // Clicking an existing annotation selects/moves it instead of drawing.
@@ -382,8 +382,7 @@ export class Tools {
       return
     }
     if (this.tool === 'select') {
-      this.pixelSelection = obj as Rect | Ellipse
-      c.requestRenderAll()
+      void this.activatePixelSelection(obj as Rect | Ellipse)
       return
     }
     if (this.tool === 'redact') {
@@ -504,13 +503,12 @@ export class Tools {
 
   pixelSelectionData(): string | null {
     const box = this.pixelBox()
-    return box ? this.doc.selectionPixels(box, this.pixelSelection instanceof Ellipse) : null
+    return box ? this.doc.selectionPixels(box) : null
   }
 
   async deletePixelSelection(): Promise<boolean> {
     const box = this.pixelBox()
     if (!box) return false
-    await this.doc.eraseBackground(box, this.pixelSelection instanceof Ellipse)
     this.doc.canvas.remove(this.pixelSelection!)
     this.pixelSelection = null
     this.onCommit()
@@ -520,7 +518,6 @@ export class Tools {
   cropPixelSelection(): boolean {
     const box = this.pixelBox()
     if (!box) return false
-    this.doc.canvas.remove(this.pixelSelection!)
     this.pixelSelection = null
     this.doc.crop(box)
     this.onCommit()
@@ -535,5 +532,44 @@ export class Tools {
       width: this.pixelSelection.getScaledWidth(),
       height: this.pixelSelection.getScaledHeight()
     }
+  }
+
+  private async activatePixelSelection(guide: Rect | Ellipse): Promise<void> {
+    const c = this.doc.canvas
+    const box: Box = {
+      x: guide.left,
+      y: guide.top,
+      width: guide.getScaledWidth(),
+      height: guide.getScaledHeight()
+    }
+    const ellipse = guide instanceof Ellipse
+    c.remove(guide)
+    const source = this.doc.backgroundPixels(box)
+    if (ellipse) {
+      const clipped = document.createElement('canvas')
+      clipped.width = source.width
+      clipped.height = source.height
+      const ctx = clipped.getContext('2d')!
+      ctx.ellipse(clipped.width / 2, clipped.height / 2, clipped.width / 2, clipped.height / 2, 0, 0, Math.PI * 2)
+      ctx.clip()
+      ctx.drawImage(source, 0, 0)
+      source.getContext('2d')!.clearRect(0, 0, source.width, source.height)
+      source.getContext('2d')!.drawImage(clipped, 0, 0)
+    }
+    await this.doc.eraseBackground(box, ellipse)
+    const image = await FabricImage.fromURL(source.toDataURL('image/png'))
+    image.set({
+      left: box.x,
+      top: box.y,
+      snapKind: 'pixel',
+      snapAsset: this.doc.addAsset(source.toDataURL('image/png')),
+      borderDashArray: [6, 4]
+    } as Partial<FabricImage>)
+    c.add(image)
+    c.setActiveObject(image)
+    image.setCoords()
+    this.pixelSelection = image
+    c.requestRenderAll()
+    this.onCommit()
   }
 }

@@ -506,11 +506,28 @@ $('selection-back').addEventListener('click', () => reorderSelection(false))
 
 document.querySelectorAll<HTMLButtonElement>('[data-selection-shape]').forEach((button) => {
   button.addEventListener('click', () => {
-    tools.selectionShape = button.dataset.selectionShape as 'rect' | 'ellipse'
+    tools.cancelPolygonSelection()
+    tools.selectionShape = button.dataset.selectionShape as 'rect' | 'ellipse' | 'polygon' | 'freehand'
     document.querySelectorAll<HTMLButtonElement>('[data-selection-shape]').forEach((item) =>
       item.setAttribute('aria-pressed', String(item === button)))
+    $('selection-finish').hidden = tools.selectionShape !== 'polygon'
   })
 })
+$('selection-replace').addEventListener('click', () => {
+  tools.selectionAdditive = false
+  $('selection-replace').setAttribute('aria-pressed', 'true')
+  $('selection-add').setAttribute('aria-pressed', 'false')
+})
+$('selection-add').addEventListener('click', () => {
+  tools.selectionAdditive = true
+  $('selection-replace').setAttribute('aria-pressed', 'false')
+  $('selection-add').setAttribute('aria-pressed', 'true')
+})
+$('selection-invert').addEventListener('click', () => {
+  tools.selectionInverted = !tools.selectionInverted
+  $('selection-invert').setAttribute('aria-pressed', String(tools.selectionInverted))
+})
+$('selection-finish').addEventListener('click', () => void tools.finishPolygonSelection())
 document.querySelectorAll<HTMLButtonElement>('[data-selection-fill]').forEach((button) => {
   button.addEventListener('click', () => {
     tools.selectionFill = button.dataset.selectionFill as 'transparent' | 'auto'
@@ -573,8 +590,13 @@ window.addEventListener('keydown', (e) => {
     return
   }
   if (key === 'enter' && tools.cropping) return tools.applyCrop()
+  if (key === 'enter' && activeTool === 'select') {
+    void tools.finishPolygonSelection()
+    return
+  }
   if (key === 'escape') {
     if (tools.cropping) return tools.cancelCrop()
+    if (tools.cancelPolygonSelection()) return
     doc.canvas.discardActiveObject()
     doc.canvas.requestRenderAll()
     return

@@ -1,6 +1,13 @@
 import { Canvas, FabricImage, FabricObject, util } from 'fabric'
 import type { Rect, SnapDoc } from '../../shared/types'
 
+export interface PixelMask {
+  kind: 'rect' | 'ellipse' | 'polygon'
+  points?: { x: number; y: number }[]
+  bounds?: Rect
+  inverted?: boolean
+}
+
 // Fabric 7 defaults to centre origins; every position in this editor is top-left based.
 FabricObject.ownDefaults.originX = 'left'
 FabricObject.ownDefaults.originY = 'top'
@@ -278,8 +285,46 @@ export class EditorDoc {
     return out.toDataURL('image/png')
   }
 
+  /** Flatten only the supplied objects, preserving transparency between disjoint areas. */
+  objectSelectionPixels(r: Rect, selected: FabricObject[]): string {
+    const keep = new Set(selected)
+    const visibility = this.canvas.getObjects().map((object) => [object, object.visible] as const)
+    for (const [object] of visibility) object.visible = keep.has(object)
+    const dataUrl = this.selectionPixels(r)
+    for (const [object, visible] of visibility) object.visible = visible
+    this.canvas.requestRenderAll()
+    return dataUrl
+  }
+
+  /** Original background pixels clipped to an arbitrary selection mask. */
+  backgroundSelection(r: Rect, mask: PixelMask): HTMLCanvasElement {
+    const out = document.createElement('canvas')
+    out.width = Math.max(1, Math.round(r.width))
+    out.height = Math.max(1, Math.round(r.height))
+    const ctx = out.getContext('2d')!
+    this.traceMask(ctx, mask, -r.x, -r.y, out.width, out.height, r)
+    ctx.clip(mask.inverted ? 'evenodd' : 'nonzero')
+    ctx.drawImage(
+      this.bg.getElement() as CanvasImageSource,
+      r.x - this.bg.left,
+      r.y - this.bg.top,
+      r.width,
+      r.height,
+      0,
+      0,
+      out.width,
+      out.height
+    )
+    return out
+  }
+
   /** Remove pixels from the background while leaving annotations editable. */
   async eraseBackground(r: Rect, ellipse = false, fill: 'transparent' | 'auto' = 'transparent'): Promise<void> {
+    await this.eraseBackgroundMask(r, { kind: ellipse ? 'ellipse' : 'rect' }, fill)
+  }
+
+  /** Remove or fill pixels covered by an arbitrary selection mask. */
+  async eraseBackgroundMask(r: Rect, mask: PixelMask, fill: 'transparent' | 'auto' = 'transparent'): Promise<void> {
     const out = document.createElement('canvas')
     out.width = this.width
     out.height = this.height
@@ -296,14 +341,45 @@ export class EditorDoc {
     const average = samples.map((_, channel) => Math.round(samples.reduce((sum, pixel) => sum + pixel[channel], 0) / samples.length))
     ctx.globalCompositeOperation = fill === 'auto' ? 'source-over' : 'destination-out'
     if (fill === 'auto') ctx.fillStyle = `rgba(${average[0]},${average[1]},${average[2]},${average[3] / 255})`
-    if (ellipse) {
-      ctx.beginPath()
-      ctx.ellipse(r.x + r.width / 2, r.y + r.height / 2, r.width / 2, r.height / 2, 0, 0, Math.PI * 2)
-      ctx.fill()
-    } else ctx.fillRect(r.x, r.y, r.width, r.height)
+    this.traceMask(ctx, mask, 0, 0, this.width, this.height, r)
+    ctx.fill(mask.inverted ? 'evenodd' : 'nonzero')
     this.canvas.remove(this.bg)
     this.setBackground(await FabricImage.fromURL(out.toDataURL('image/png')), 0, 0)
     this.canvas.requestRenderAll()
+  }
+
+  private traceMask(
+    ctx: CanvasRenderingContext2D,
+    mask: PixelMask,
+    offsetX: number,
+    offsetY: number,
+    outerWidth: number,
+    outerHeight: number,
+    box?: Rect
+  ): void {
+    const r = mask.bounds ?? box ?? { x: 0, y: 0, width: this.width, height: this.height }
+    ctx.beginPath()
+    if (mask.inverted) ctx.rect(0, 0, outerWidth, outerHeight)
+    if (mask.kind === 'ellipse') {
+      ctx.ellipse(
+        r.x + offsetX + r.width / 2,
+        r.y + offsetY + r.height / 2,
+        r.width / 2,
+        r.height / 2,
+        0,
+        0,
+        Math.PI * 2
+      )
+      return
+    }
+    if (mask.kind === 'polygon' && mask.points?.length) {
+      const [first, ...rest] = mask.points
+      ctx.moveTo(first.x + offsetX, first.y + offsetY)
+      for (const point of rest) ctx.lineTo(point.x + offsetX, point.y + offsetY)
+      ctx.closePath()
+      return
+    }
+    ctx.rect(r.x + offsetX, r.y + offsetY, r.width, r.height)
   }
 
   /** Shift everything so `r` becomes the new document bounds. */

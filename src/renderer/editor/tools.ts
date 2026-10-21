@@ -1,4 +1,5 @@
 import {
+  ActiveSelection,
   Circle,
   Ellipse,
   FabricImage,
@@ -14,7 +15,7 @@ import {
   type TPointerEventInfo
 } from 'fabric'
 import type { Rect as Box } from '../../shared/types'
-import type { EditorDoc, SnapKind } from './doc'
+import type { EditorDoc, PixelMask, SnapKind } from './doc'
 import { blockSize, pixelate } from './redact'
 
 export type ToolName =
@@ -103,9 +104,13 @@ export class Tools {
   tool: ToolName = 'arrow'
   private drag: { start: Point; obj: FabricObject | null } | null = null
   private cropBox: Rect | null = null
-  private pixelSelection: FabricImage | null = null
-  selectionShape: 'rect' | 'ellipse' = 'rect'
+  private pixelSelections: FabricImage[] = []
+  private selectionPoints: Point[] = []
+  private polygonGuide: Path | null = null
+  selectionShape: 'rect' | 'ellipse' | 'polygon' | 'freehand' = 'rect'
   selectionFill: 'transparent' | 'auto' = 'transparent'
+  selectionAdditive = false
+  selectionInverted = false
   onCommit: () => void = () => undefined
   onCropChange: (active: boolean) => void = () => undefined
 
@@ -129,8 +134,9 @@ export class Tools {
 
   setTool(tool: ToolName): void {
     if (this.tool === 'crop' && tool !== 'crop') this.cancelCrop()
-    if (this.tool === 'select' && tool !== 'select' && this.pixelSelection) {
-      this.pixelSelection = null
+    if (this.tool === 'select' && tool !== 'select') {
+      this.pixelSelections = []
+      this.cancelPolygonSelection()
     }
     this.tool = tool
     const c = this.doc.canvas
@@ -222,10 +228,14 @@ export class Tools {
   private down(o: TPointerEventInfo): void {
     const tool = this.tool
     if (tool === 'move' || tool === 'pen') return
-    if (tool === 'select' && this.pixelSelection) {
-      if (o.target === this.pixelSelection) return
-      this.doc.canvas.discardActiveObject()
-      this.pixelSelection = null
+    if (tool === 'select' && this.pixelSelections.includes(o.target as FabricImage)) return
+    if (tool === 'select' && this.selectionShape === 'polygon') {
+      const point = this.point(o)
+      const last = this.selectionPoints.at(-1)
+      if (!last || Math.hypot(point.x - last.x, point.y - last.y) > 2) this.selectionPoints.push(point)
+      this.updatePolygonGuide(this.selectionPoints)
+      if ((o.e as MouseEvent).detail >= 2 && this.selectionPoints.length >= 3) void this.finishPolygonSelection()
+      return
     }
     // Clicking an existing annotation selects/moves it instead of drawing.
     if (tool !== 'select' && o.target && o.target !== this.doc.bg && o.target !== this.cropBox) return
@@ -236,10 +246,15 @@ export class Tools {
       this.doc.canvas.remove(this.cropBox)
       this.cropBox = null
     }
+    if (tool === 'select' && this.selectionShape === 'freehand') this.selectionPoints = [p]
     this.drag = { start: p, obj: null }
   }
 
   private move(o: TPointerEventInfo): void {
+    if (!this.drag && this.tool === 'select' && this.selectionShape === 'polygon' && this.selectionPoints.length) {
+      this.updatePolygonGuide([...this.selectionPoints, this.point(o)])
+      return
+    }
     if (!this.drag) return
     const c = this.doc.canvas
     const { start } = this.drag
@@ -255,6 +270,13 @@ export class Tools {
 
     switch (this.tool) {
       case 'select':
+        if (this.selectionShape === 'freehand') {
+          const last = this.selectionPoints.at(-1)!
+          if (Math.hypot(p.x - last.x, p.y - last.y) >= 2) this.selectionPoints.push(p)
+          this.updatePolygonGuide(this.selectionPoints)
+          obj = this.polygonGuide
+          break
+        }
         if (!obj) {
           const options = {
             fill: 'rgba(39,134,184,0.12)',
@@ -383,7 +405,12 @@ export class Tools {
       return
     }
     if (this.tool === 'select') {
-      void this.activatePixelSelection(obj as Rect | Ellipse)
+      if (this.selectionShape === 'freehand') {
+        const points = [...this.selectionPoints]
+        this.selectionPoints = []
+        this.polygonGuide = null
+        void this.activatePixelSelection(obj, points)
+      } else void this.activatePixelSelection(obj)
       return
     }
     if (this.tool === 'redact') {
@@ -499,19 +526,20 @@ export class Tools {
   }
 
   get hasPixelSelection(): boolean {
-    return this.pixelSelection !== null
+    return this.pixelSelections.length > 0
   }
 
   pixelSelectionData(): string | null {
     const box = this.pixelBox()
-    return box ? this.doc.selectionPixels(box) : null
+    return box ? this.doc.objectSelectionPixels(box, this.pixelSelections) : null
   }
 
   async deletePixelSelection(): Promise<boolean> {
     const box = this.pixelBox()
     if (!box) return false
-    this.doc.canvas.remove(this.pixelSelection!)
-    this.pixelSelection = null
+    this.doc.canvas.discardActiveObject()
+    for (const image of this.pixelSelections) this.doc.canvas.remove(image)
+    this.pixelSelections = []
     this.onCommit()
     return true
   }
@@ -519,57 +547,100 @@ export class Tools {
   cropPixelSelection(): boolean {
     const box = this.pixelBox()
     if (!box) return false
-    this.pixelSelection = null
+    this.pixelSelections = []
     this.doc.crop(box)
     this.onCommit()
     return true
   }
 
   private pixelBox(): Box | null {
-    if (!this.pixelSelection) return null
+    if (!this.pixelSelections.length) return null
+    const boxes = this.pixelSelections.map((image) => image.getBoundingRect())
+    const left = Math.min(...boxes.map((box) => box.left))
+    const top = Math.min(...boxes.map((box) => box.top))
+    const right = Math.max(...boxes.map((box) => box.left + box.width))
+    const bottom = Math.max(...boxes.map((box) => box.top + box.height))
     return {
-      x: this.pixelSelection.left,
-      y: this.pixelSelection.top,
-      width: this.pixelSelection.getScaledWidth(),
-      height: this.pixelSelection.getScaledHeight()
+      x: left,
+      y: top,
+      width: right - left,
+      height: bottom - top
     }
   }
 
-  private async activatePixelSelection(guide: Rect | Ellipse): Promise<void> {
+  private updatePolygonGuide(points: Point[]): void {
     const c = this.doc.canvas
-    const box: Box = {
-      x: guide.left,
-      y: guide.top,
-      width: guide.getScaledWidth(),
-      height: guide.getScaledHeight()
+    if (this.polygonGuide) c.remove(this.polygonGuide)
+    if (points.length < 2) {
+      this.polygonGuide = null
+      return
     }
-    const ellipse = guide instanceof Ellipse
+    const path = points.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ')
+    this.polygonGuide = new Path(path, {
+      fill: 'rgba(39,134,184,0.12)',
+      stroke: '#2786b8',
+      strokeWidth: 1,
+      strokeDashArray: [6, 4],
+      strokeUniform: true,
+      excludeFromExport: true,
+      evented: false,
+      selectable: false
+    })
+    c.add(this.polygonGuide)
+    c.requestRenderAll()
+  }
+
+  async finishPolygonSelection(): Promise<boolean> {
+    if (this.selectionPoints.length < 3 || !this.polygonGuide) return false
+    const guide = this.polygonGuide
+    const points = [...this.selectionPoints]
+    this.selectionPoints = []
+    this.polygonGuide = null
+    await this.activatePixelSelection(guide, points)
+    return true
+  }
+
+  cancelPolygonSelection(): boolean {
+    if (!this.selectionPoints.length && !this.polygonGuide) return false
+    if (this.polygonGuide) this.doc.canvas.remove(this.polygonGuide)
+    this.selectionPoints = []
+    this.polygonGuide = null
+    this.doc.canvas.requestRenderAll()
+    return true
+  }
+
+  private async activatePixelSelection(guide: FabricObject, points?: Point[]): Promise<void> {
+    const c = this.doc.canvas
+    const bounds = guide.getBoundingRect()
+    let box: Box = { x: bounds.left, y: bounds.top, width: bounds.width, height: bounds.height }
+    const mask: PixelMask = {
+      kind: points ? 'polygon' : guide instanceof Ellipse ? 'ellipse' : 'rect',
+      points: points?.map(({ x, y }) => ({ x, y })),
+      bounds: box,
+      inverted: this.selectionInverted
+    }
+    if (mask.inverted) box = { x: 0, y: 0, width: this.doc.width, height: this.doc.height }
     c.remove(guide)
-    const source = this.doc.backgroundPixels(box)
-    if (ellipse) {
-      const clipped = document.createElement('canvas')
-      clipped.width = source.width
-      clipped.height = source.height
-      const ctx = clipped.getContext('2d')!
-      ctx.ellipse(clipped.width / 2, clipped.height / 2, clipped.width / 2, clipped.height / 2, 0, 0, Math.PI * 2)
-      ctx.clip()
-      ctx.drawImage(source, 0, 0)
-      source.getContext('2d')!.clearRect(0, 0, source.width, source.height)
-      source.getContext('2d')!.drawImage(clipped, 0, 0)
-    }
-    await this.doc.eraseBackground(box, ellipse, this.selectionFill)
-    const image = await FabricImage.fromURL(source.toDataURL('image/png'))
+    const source = this.doc.backgroundSelection(box, mask)
+    await this.doc.eraseBackgroundMask(box, mask, this.selectionFill)
+    const dataUrl = source.toDataURL('image/png')
+    const image = await FabricImage.fromURL(dataUrl)
     image.set({
       left: box.x,
       top: box.y,
       snapKind: 'pixel',
-      snapAsset: this.doc.addAsset(source.toDataURL('image/png')),
+      snapAsset: this.doc.addAsset(dataUrl),
       borderDashArray: [6, 4]
     } as Partial<FabricImage>)
     c.add(image)
-    c.setActiveObject(image)
+    if (!this.selectionAdditive) this.pixelSelections = []
+    this.pixelSelections.push(image)
+    c.setActiveObject(
+      this.pixelSelections.length === 1
+        ? image
+        : new ActiveSelection(this.pixelSelections, { canvas: c })
+    )
     image.setCoords()
-    this.pixelSelection = image
     c.requestRenderAll()
     this.onCommit()
   }
@@ -587,7 +658,7 @@ export class Tools {
     } as Partial<FabricImage>)
     this.doc.canvas.add(image)
     this.doc.canvas.setActiveObject(image)
-    this.pixelSelection = image
+    this.pixelSelections = [image]
     this.doc.canvas.requestRenderAll()
     this.onCommit()
   }

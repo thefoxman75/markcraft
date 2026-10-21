@@ -53,6 +53,15 @@
             <div class="selection-shapes">
               <button data-selection-shape="rect" aria-pressed="true">Rectangle</button>
               <button data-selection-shape="ellipse" aria-pressed="false">Ellipse</button>
+              <button data-selection-shape="polygon" aria-pressed="false">Polygon</button>
+              <button data-selection-shape="freehand" aria-pressed="false">Freehand</button>
+            </div>
+            <h2 class="selection-actions-title">Selection Mode</h2>
+            <div class="selection-shapes">
+              <button id="selection-replace" aria-pressed="true">Replace</button>
+              <button id="selection-add" aria-pressed="false">Add Areas</button>
+              <button id="selection-invert" aria-pressed="false">Invert</button>
+              <button id="selection-finish" hidden>Finish Polygon</button>
             </div>
             <h2 class="selection-actions-title">Background Fill</h2>
             <div class="selection-shapes">
@@ -67,7 +76,7 @@
               <button id="pixel-crop">Crop</button>
               <button id="pixel-paste">Paste Image</button>
             </div>
-            <p class="property-help">Drag on the image to select pixels. Deleted areas become transparent.</p>
+            <p class="property-help">Drag a shape, or click polygon corners and press Enter. Selected pixels can be moved and resized.</p>
           </section>
           <section id="selection-section" class="property-section selection-section" hidden>
             <div class="selection-metrics" aria-label="Selection position and size">

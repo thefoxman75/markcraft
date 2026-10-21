@@ -181,6 +181,46 @@ app.on('browser-window-created', (_e, win) => {
       win.webContents.send('menu', 'saveAs')
       for (let i = 0; i < 40 && !fs.existsSync(saved); i++) await pause()
       verifySaved(saved)
+
+      // Exercise polygon, additive freehand, and inverted pixel selections.
+      await win.webContents.executeJavaScript(`(async () => {
+        const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+        const upper = document.querySelector('.upper-canvas')
+        const point = (x, y) => {
+          const box = upper.getBoundingClientRect()
+          return { clientX: box.left + x, clientY: box.top + y }
+        }
+        const fire = (target, type, x, y) => target.dispatchEvent(new MouseEvent(type, {
+          bubbles: true, button: 0, buttons: type === 'mouseup' ? 0 : 1, ...point(x, y)
+        }))
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+        document.querySelector('[data-selection-shape="polygon"]').click()
+        for (const [x, y] of [[80, 80], [260, 100], [170, 240]]) {
+          fire(upper, 'mousedown', x, y); fire(document, 'mouseup', x, y)
+        }
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+        await wait(200)
+        document.getElementById('selection-add').click()
+        document.querySelector('[data-selection-shape="freehand"]').click()
+        fire(upper, 'mousedown', 350, 100)
+        for (const [x, y] of [[470, 90], [500, 200], [390, 240], [340, 150]]) {
+          fire(document, 'mousemove', x, y); await wait(15)
+        }
+        fire(document, 'mouseup', 350, 100)
+        await wait(200)
+        document.getElementById('selection-invert').click()
+        document.querySelector('[data-selection-shape="rect"]').click()
+        fire(upper, 'mousedown', 650, 150)
+        fire(document, 'mousemove', 850, 350)
+        fire(document, 'mouseup', 850, 350)
+        await wait(300)
+      })()`)
+      win.webContents.send('menu', 'save')
+      await pause()
+      const selectionDoc = JSON.parse(fs.readFileSync(saved, 'utf8'))
+      const pixelSelections = selectionDoc.objects.filter((object) => object.snapKind === 'pixel')
+      if (pixelSelections.length !== 3) throw new Error(`saved ${pixelSelections.length} pixel selections, expected 3`)
+      console.log('selection: polygon + additive freehand + inverted rectangle saved as movable pixels')
       await win.webContents.executeJavaScript("__tool('a')")
       await pause()
       fs.writeFileSync(out, (await win.webContents.capturePage()).toPNG())
